@@ -8,17 +8,17 @@ using Snitch.Sections;
 namespace Snitch.Vanilla
 {
     /// <summary>
-    /// Phase 2: attributes per-frame CPU cost to VANILLA hot paths without modifying them. A Harmony
+    /// Attributes per-frame CPU cost to VANILLA hot paths without modifying them. A Harmony
     /// Prefix+Finalizer wraps each target method; one aggregated section label sums the time across ALL
     /// instances (e.g. "Vanilla.NPC.Movement.Update" = total NPCMovement.Update ms/frame across every NPC).
-    /// Phase 0 verified this works in this IL2CPP build (calls scale with the NPC count) and that direct
+    /// This works in this IL2CPP build (calls scale with the NPC count) and direct
     /// Stopwatch timing is low-noise. Patches are applied on demand ('snitch vanilla on') and stay dormant
     /// (one bool read) until enabled, so they add no cost when off. A single shared prefix/finalizer maps the
     /// original method to its section id via __originalMethod, so adding a target is one Patch() line.
     ///
     /// HONESTY: these numbers are SELF-MEASURED (only what we explicitly wrap) and include a small patch
     /// overhead. They are NOT a sampling profiler. NPCMovement.Update is cheap (~0.06ms/frame) - the dominant
-    /// per-NPC cost is native (NavMeshAgent) and is only attributable via the ablation harness (Phase 3).
+    /// per-NPC cost is native (NavMeshAgent) and is only attributable via the ablation harness.
     /// </summary>
     internal static class VanillaProbes
     {

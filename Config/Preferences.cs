@@ -7,7 +7,7 @@ namespace Snitch.Config
     /// MelonPreferences wrapper. The category id is prefixed with the mod name ("Snitch_...") so it is
     /// auto-detected by the "Mod Manager &amp; Phone App" settings UI. The profiler ships its product surface
     /// (HUD, console, local data server) in Release too, but everything stays idle until <c>snitch start</c>,
-    /// so the defaults here are safe/quiet. DEBUG adds the Phase-0 verification toggles.
+    /// so the defaults here are safe/quiet.
     /// </summary>
     internal static class Preferences
     {

@@ -64,7 +64,7 @@ namespace Snitch.Ablation
     }
 
     /// <summary>
-    /// Causal A/B harness (Phase 3, advanced): the build-independent way to get "total cost of a subsystem".
+    /// Causal A/B harness (advanced): the build-independent way to get "total cost of a subsystem".
     /// For a chosen lever it settles an all-on baseline (warmup + a stddev/mean stability gate), toggles the
     /// subsystem OFF, settles again, and reports the frame-time DELTA - which IS that subsystem's cost. Slower
     /// and more invasive than the section timers, but it sees native cost (e.g. NavMeshAgent) the Harmony

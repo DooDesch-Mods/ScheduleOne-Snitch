@@ -14,7 +14,7 @@ namespace Snitch.Engine
 
     /// <summary>
     /// The load-bearing measurement layer: a rolling frame-time window (build-independent and always works)
-    /// plus GC collection-count pressure. Phase 0 confirmed Unity's ProfilerRecorder engine counters are inert
+    /// plus GC collection-count pressure. Unity's ProfilerRecorder engine counters are inert
     /// in this IL2CPP build, so frame-time + GC ARE the truth; engine counters (if any) are advisory only and
     /// live in a separate provider. Ported/trimmed from Litterally's PerfSampler.
     /// </summary>

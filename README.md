@@ -8,7 +8,7 @@
 > [S1API](https://github.com/ifBars/S1API) - any other mod's systems. It ships with an in-game HUD and a live
 > **web dashboard** so you can see frame times, section costs, and entity-state distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -92,8 +92,7 @@ connects straight to `ws://127.0.0.1:6140` so your data stays on your machine.
 ## Compatibility
 
 Profiling is read-only and safe alongside other mods (it even observes their effects). State-mutating features
-(the ablation levers) run host-only in multiplayer. Dev-only tooling (the Phase-0 probes) is Debug-only and
-not in the released build.
+(the ablation levers) run host-only in multiplayer. The profiler stays idle until you run `snitch start`.
 
 ## Credits
 

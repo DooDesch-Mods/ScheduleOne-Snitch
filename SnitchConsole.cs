@@ -10,10 +10,8 @@ using Snitch.Sections;
 namespace Snitch
 {
     /// <summary>
-    /// Dev-console bridge. Patches the game's <c>Console.SubmitCommand</c> (both overloads) and intercepts the
-    /// "snitch ..." namespace so the Schedule1 MCP / run_console_command can drive the profiler headlessly.
-    /// In DEBUG builds it also exposes "snitch p0 ..." which routes to the Phase-0 verification probes. In
-    /// Phase 1 this grows the real verbs (start/stop/hud/top/sections/counters/states/report/...).
+    /// Console bridge. Patches the game's <c>Console.SubmitCommand</c> (both overloads) and intercepts the
+    /// "snitch ..." namespace so the profiler can be driven from the in-game console (and headlessly).
     /// </summary>
     internal static class SnitchConsole
     {
@@ -66,9 +64,6 @@ namespace Snitch
                     case "ablate": Ablate(p); break;
                     case "levers": Log("ablation levers: " + string.Join(", ", Ablation.LeverRegistry.Names)); break;
                     case "help": Help(); break;
-#if DEBUG
-                    case "p0": P0.Phase0.Run(p); break;
-#endif
                     default: Log($"unknown '{cmd}'. Try 'snitch help'."); break;
                 }
             }
@@ -82,11 +77,7 @@ namespace Snitch
         private static void Help()
         {
             Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | hud [on|off] | "
-                + "vanilla [on|off] | ablate <lever> | levers | report [md|csv|all]"
-#if DEBUG
-                + " | p0 <sw|uncap|recap|recorders|trampoline|npcpatch|web|caps>"
-#endif
-                );
+                + "vanilla [on|off] | ablate <lever> | levers | report [md|csv|all]");
         }
 
         private static void Status()

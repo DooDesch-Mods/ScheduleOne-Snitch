@@ -15,8 +15,8 @@ namespace Snitch.Server
     /// The local data server: a loopback HTTP + WebSocket endpoint (127.0.0.1) that streams live profiler data
     /// to the SnitchWeb dashboard (hosted or the bundled offline copy) and serves the offline viewer. Same
     /// proven shape as ScheduleMCP's bridge - HttpListener + background accept thread, work marshalled to the
-    /// main thread via a queue, System.Text-free hand-rolled JSON. Phase 0 verified the in-process WebSocket
-    /// upgrade works under this IL2CPP runtime.
+    /// main thread via a queue, System.Text-free hand-rolled JSON. The in-process WebSocket upgrade works
+    /// under this IL2CPP runtime.
     ///
     /// Security: binds 127.0.0.1 only; validates the browser Origin against an allowlist (localhost always OK);
     /// answers Chrome's Private Network Access preflight (Access-Control-Allow-Private-Network); optional token.

@@ -2,6 +2,14 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.0.1] - 2026-06-22
+
+Internal cleanup. No functional or behavioural changes.
+
+### Changed
+- Removed leftover development scaffolding: the dev-only verification probes and all internal
+  "phase"-process references in code comments, console help, and docs.
+
 ## [1.0.0] - 2026-06-22
 
 Initial release. Feature-complete and verified in-game.

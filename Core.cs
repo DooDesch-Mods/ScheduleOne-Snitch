@@ -4,19 +4,16 @@ using Snitch.Config;
 using Snitch.Engine;
 using Snitch.Server;
 
-[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.0.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
+[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.0.1", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
 [assembly: MelonOptionalDependencies("ModManager&PhoneApp")]
 
 namespace Snitch
 {
     /// <summary>
-    /// MelonLoader entry point for the Snitch profiler. This is the Phase-0 verification build: it stands up
-    /// the dev console bridge ("snitch ...") and the Phase-0 probes that prove, live in this IL2CPP build,
-    /// whether the design's risky bits work (Stopwatch resolution, framerate uncap, ProfilerRecorder counters,
-    /// Harmony per-call overhead, per-entity Update patching, and the in-process WebSocket upgrade) before the
-    /// real engine is built on top. The product surface (engine, providers, HUD, server, web dashboard) lands
-    /// in Phase 1+. Everything stays idle until explicitly armed, so the mod is near-free when not in use.
+    /// MelonLoader entry point for the Snitch profiler. It installs the modder API bridge, the console bridge
+    /// ("snitch ..."), and the local data server, then drives the sampling engine each in-world frame.
+    /// Everything stays idle (near-zero cost) until explicitly armed with "snitch start".
     /// </summary>
     public sealed class Core : MelonMod
     {
@@ -37,9 +34,9 @@ namespace Snitch
             // Publish the modder API bridge as early as possible so other mods' Snitch.Api calls bind.
             Snitch.Bridge.BridgeHost.Install();
 
-            // The console bridge (Console.SubmitCommand prefixes) ships in every build - it is the product's
-            // control surface. PatchAll only patches the two console classes; per-entity probes are patched
-            // on demand (in Phase0) so a probe failure can never break the console.
+            // The console bridge (Console.SubmitCommand prefixes) is the product's control surface. PatchAll
+            // only patches the console classes; vanilla cost probes are patched on demand so a probe failure
+            // can never break the console.
             try { HarmonyInstance.PatchAll(); }
             catch (Exception e) { Log.Warning("[Snitch] Harmony patch failed: " + e.Message); }
 
@@ -47,12 +44,7 @@ namespace Snitch
             if (Preferences.Enabled && Preferences.ServerEnabled)
                 SnitchServer.Start(Preferences.ServerPort, Preferences.ServerToken, Preferences.AllowedOrigins);
 
-#if DEBUG
-            Log.Msg("Snitch v1.0.0 (DEBUG) - dev build with Phase-0 probes. In-game console:");
-            Log.Msg("  snitch start | hud on | top | states | vanilla on | ablate npc | report  (+ p0 <...>)");
-#else
-            Log.Msg("Snitch v1.0.0 - profiler. Console: 'snitch ...' (idle until 'snitch start').");
-#endif
+            Log.Msg("Snitch v1.0.1 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -79,9 +71,6 @@ namespace Snitch
                 return;
             }
             if (Preferences.Enabled) SnitchCore.Tick();
-#if DEBUG
-            P0.Phase0.Tick();
-#endif
         }
 
         public override void OnGUI()
@@ -93,17 +82,11 @@ namespace Snitch
         public override void OnApplicationQuit()
         {
             SnitchServer.Stop();
-#if DEBUG
-            P0.Phase0.Shutdown();
-#endif
         }
 
         public override void OnDeinitializeMelon()
         {
             SnitchServer.Stop();
-#if DEBUG
-            P0.Phase0.Shutdown();
-#endif
         }
     }
 }

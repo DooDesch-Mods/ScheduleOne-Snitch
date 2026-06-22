@@ -17,10 +17,10 @@ namespace Snitch.Sections
 
     /// <summary>
     /// Stopwatch-accumulator section timer. Main-thread-only, allocation-free on the hot path. Backs both the
-    /// public modder API (Snitch.Sample("MyMod.X") via the Bridge) and Phase 2's vanilla Harmony probes - one
+    /// public modder API (Snitch.Sample("MyMod.X") via the Bridge) and the vanilla Harmony probes - one
     /// code path. Per label: accumulate elapsed Stopwatch ticks + call count within a frame, then Flush() at the
     /// end of the frame pushes the per-frame totals into rolling windows. Recursion-safe via a depth guard so a
-    /// self-recursive label counts its outermost span once. Phase 0 verified Stopwatch is high-res (~18.7ns/call).
+    /// self-recursive label counts its outermost span once. Stopwatch is high-resolution here (~18.7ns/call).
     /// </summary>
     internal static class SectionProfiler
     {

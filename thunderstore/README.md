@@ -8,7 +8,7 @@ Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through
 mod's systems. It ships with an in-game HUD and a live **web dashboard** so you can see frame times, section
 costs, and entity-state distributions in real time, and make your mod (or vanilla gameplay) faster.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)

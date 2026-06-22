@@ -23,7 +23,7 @@ namespace Snitch.Server
             FrameStats f = SnitchCore.LatestFrame;
             var sb = new StringBuilder(2048);
             sb.Append("{\"type\":\"snapshot\",\"v\":").Append(Version).Append(",\"t\":").Append(frame).Append(',');
-            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.0.0\",\"scene\":\"").Append(Esc(scene))
+            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.0.1\",\"scene\":\"").Append(Esc(scene))
               .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false").Append("},");
 
             sb.Append("\"frame\":{");
@@ -80,17 +80,17 @@ namespace Snitch.Server
 
         internal static string BuildHealth(int frame, string scene)
         {
-            return "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.0.0\",\"active\":" + (SnitchCore.Active ? "true" : "false")
+            return "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.0.1\",\"active\":" + (SnitchCore.Active ? "true" : "false")
                  + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame + "}";
         }
 
-        /// <summary>Static capability statement derived from the Phase-0 findings (honesty layer).</summary>
+        /// <summary>Static capability statement (the honesty layer).</summary>
         internal static string BuildCaps()
         {
             return "{\"type\":\"caps\",\"v\":" + Version + ",\"frameTime\":\"load-bearing\",\"gc\":\"load-bearing\","
                  + "\"engineCounters\":\"unavailable\",\"perEntityAttribution\":\"viable\","
                  + "\"note\":\"ProfilerRecorder is inert in this IL2CPP build; frame-time + GC are the truth. "
-                 + "Per-entity vanilla cost attribution is viable (Phase 0 verified). Causal subsystem cost uses the ablation stability gate.\"}";
+                 + "Per-entity vanilla cost attribution is viable. Causal subsystem cost uses the ablation stability gate.\"}";
         }
 
         // ----- helpers -----

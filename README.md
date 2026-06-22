@@ -9,7 +9,7 @@
 > **[web dashboard](https://snitch.doodesch.de)** so you can see frame times, section costs, and entity-state
 > distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -75,13 +75,17 @@ distributions live.
 
 ## For modders
 
-Drop in `Snitch.cs` (or reference `Snitch.Api.dll`) - it's a zero-overhead no-op when Snitch isn't installed:
+Your mod's per-frame methods (`OnUpdate` etc.) are **auto-timed with zero code** - it just appears as
+`<YourMod>.OnUpdate` once Snitch is sampling. To go further, drop in `Snitch.cs` (or reference
+`Snitch.Api.dll`) - a zero-overhead no-op when Snitch isn't installed - and either name a class `SnitchProbe`
+with a static `Register()` (auto-discovered, no wiring) or call the API directly:
 
 ```csharp
-using (Snitch.Api.Snitch.Sample("MyMod.Pathfinding")) { ... }              // time a section
-Snitch.Api.Snitch.RegisterCounter("MyMod.QueueLength", () => _q.Count, "items");
-Snitch.Api.Snitch.RegisterStateProvider("MyMod.Jobs", () => ...);          // a distribution
-Snitch.Api.Snitch.RegisterAblationLever("mymod.fx", off, on);              // a causal A/B lever
+using Snitch.Api;   // Profiler, StateSnapshot
+using (Profiler.Sample("MyMod.Pathfinding")) { ... }              // hand-time a sub-section
+Profiler.RegisterCounter("MyMod.QueueLength", () => _q.Count, "items");
+Profiler.RegisterStateProvider("MyMod.Jobs", () => ...);          // a distribution
+Profiler.RegisterAblationLever("mymod.fx", off, on);              // a causal A/B lever
 ```
 
 See the **[SnitchExample](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** mod for the full

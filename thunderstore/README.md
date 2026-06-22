@@ -8,7 +8,7 @@ Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through
 mod's systems. It ships with an in-game HUD and a live **web dashboard** so you can see frame times, section
 costs, and entity-state distributions in real time, and make your mod (or vanilla gameplay) faster.
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -41,14 +41,17 @@ levers, report`. Reports are written to `Mods/Snitch/runs/`.
 
 ## For modders
 
-Drop in `Snitch.cs` (or reference `Snitch.Api.dll`):
+Your mod's `OnUpdate` etc. are auto-timed with zero code (`<YourMod>.OnUpdate`). For more, drop in `Snitch.cs`
+(or reference `Snitch.Api.dll`) - a no-op when Snitch isn't installed:
 
 ```csharp
-using (Snitch.Api.Snitch.Sample("MyMod.Work")) { ... }                    // time a section
-Snitch.Api.Snitch.RegisterCounter("MyMod.Queue", () => _q.Count, "items"); // a gauge
-Snitch.Api.Snitch.RegisterStateProvider("MyMod.Jobs", () => ...);          // a distribution
+using Snitch.Api;   // Profiler, StateSnapshot
+using (Profiler.Sample("MyMod.Work")) { ... }                    // hand-time a sub-section
+Profiler.RegisterCounter("MyMod.Queue", () => _q.Count, "items"); // a gauge
+Profiler.RegisterStateProvider("MyMod.Jobs", () => ...);          // a distribution
 ```
 
+Or just name a class `SnitchProbe` with a static `Register()` - Snitch discovers and calls it automatically.
 Full example: **[ScheduleOne-SnitchExample](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)**.
 
 ## Notes

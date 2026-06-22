@@ -19,6 +19,7 @@ namespace Snitch.Config
         private static MelonPreferences_Entry<bool> _enabled;
         private static MelonPreferences_Entry<bool> _enableInMp;
         private static MelonPreferences_Entry<bool> _autoStart;
+        private static MelonPreferences_Entry<bool> _autoInstrument;
         private static MelonPreferences_Entry<bool> _showHud;
         private static MelonPreferences_Entry<float> _pollHz;
 
@@ -50,6 +51,10 @@ namespace Snitch.Config
             _autoStart = Create("AutoStart", false, "Auto-start sampling on world load",
                 "OFF (default): you arm sampling manually with 'snitch start'. ON: begin sampling automatically when " +
                 "you enter the world. Leave OFF unless you want the profiler always running.");
+            _autoInstrument = Create("AutoInstrument", true, "Auto-instrument other mods",
+                "ON (default): while sampling, every other loaded mod's per-frame methods (OnUpdate etc.) are timed " +
+                "automatically and shown as '<Mod>.OnUpdate' - so any mod's frame cost appears with no code on its side. " +
+                "Turn OFF to only show sections that mods (or Snitch's vanilla probes) register explicitly.");
             _showHud = Create("ShowHud", false, "Show profiler HUD",
                 "On-screen overlay with frame stats, top section costs, counters and state distributions. OFF by " +
                 "default; toggle live with 'snitch hud' or the F6 hotkey. Only draws while sampling is armed.");
@@ -85,6 +90,7 @@ namespace Snitch.Config
         internal static bool Enabled => _enabled?.Value ?? true;
         internal static bool EnableInMultiplayer => _enableInMp?.Value ?? true;
         internal static bool AutoStart => _autoStart?.Value ?? false;
+        internal static bool AutoInstrument => _autoInstrument?.Value ?? true;
         internal static bool ShowHud => _showHud?.Value ?? false;
         internal static void SetShowHud(bool v) { if (_showHud != null) _showHud.Value = v; }
         internal static float PollHz => Mathf.Clamp(_pollHz?.Value ?? 4f, 1f, 30f);

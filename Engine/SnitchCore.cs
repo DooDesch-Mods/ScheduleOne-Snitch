@@ -52,6 +52,8 @@ namespace Snitch.Engine
             _active = true;
             FrameSampler.ResetGcWindow();
             SectionProfiler.Reset();
+            Vanilla.AutoInstrument.DiscoverProbes();   // register each mod's counters/state once (zero mod wiring)
+            if (Preferences.AutoInstrument) Vanilla.AutoInstrument.Enable();   // per-mod frame cost, zero mod code
             _pollAccum = 999f;   // force a poll on the next tick
             Core.Log?.Msg("[snitch] sampling started.");
         }
@@ -59,6 +61,7 @@ namespace Snitch.Engine
         internal static void Stop()
         {
             _active = false;
+            Vanilla.AutoInstrument.Disable();
             Core.Log?.Msg("[snitch] sampling stopped.");
         }
 

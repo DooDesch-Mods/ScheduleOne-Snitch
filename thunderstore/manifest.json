@@ -1,6 +1,6 @@
 {
   "name": "Snitch",
-  "version_number": "1.0.1",
+  "version_number": "1.0.2",
   "website_url": "https://github.com/DooDesch-Mods/ScheduleOne-Snitch",
   "description": "A performance profiler - measure the cost + state of NPCs, trash, quests and your own mods, with an in-game HUD and a live web dashboard.",
   "dependencies": [

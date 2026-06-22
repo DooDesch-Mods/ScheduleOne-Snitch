@@ -2,6 +2,24 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.0.2] - 2026-06-22
+
+Less code in mods, more profiling for free. No change to the host data/wire protocol or the bridge ABI, so
+existing integrations keep working.
+
+### Added
+- Auto-instrumentation: while sampling, every other loaded mod's per-frame methods (`OnUpdate`, `OnFixedUpdate`,
+  `OnLateUpdate`, `OnGUI`) are timed automatically and shown as `<Mod>.OnUpdate` - per-mod frame cost with zero
+  code on the mod's side. Toggle with the `AutoInstrument` preference.
+- Zero-wiring registration: a mod's `SnitchProbe.Register()` is now discovered and called by the host
+  automatically when sampling starts, so a mod no longer wires a registration call into its `OnInitializeMelon`.
+
+### Changed
+- Modder API shim class renamed `Snitch.Api.Snitch` -> `Snitch.Api.Profiler` (drops the `using Prof = ...`
+  alias; just `using Snitch.Api;` then `Profiler.Sample(...)`). The bridge contract is unchanged, so previously
+  shipped shims still bind and report.
+- Cheaper no-op path: the shim's pre-bind host lookup no longer scans every loaded assembly each call.
+
 ## [1.0.1] - 2026-06-22
 
 Internal cleanup. No functional or behavioural changes.

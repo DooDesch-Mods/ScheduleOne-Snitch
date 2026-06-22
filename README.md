@@ -6,7 +6,8 @@
 
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
 > [S1API](https://github.com/ifBars/S1API) - any other mod's systems. It ships with an in-game HUD and a live
-> **web dashboard** so you can see frame times, section costs, and entity-state distributions in real time.
+> **[web dashboard](https://snitch.doodesch.de)** so you can see frame times, section costs, and entity-state
+> distributions in real time.
 
 ![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
@@ -14,13 +15,15 @@
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
+**[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de)**
+
 ## Features
 
 - **Frame time** distribution + fps + GC pressure - the load-bearing, build-independent truth.
 - **Section costs** - time named code sections (yours via the API, or vanilla hot paths like `NPCMovement.Update`).
 - **State distributions** - NPCs by movement/visibility, trash by physics state, quests by state, and your own.
 - **Ablation A/B** - toggle a subsystem off and measure the real frame-time delta (the causal "total cost").
-- **Live web dashboard** - opens straight to your local game over WebSocket; your telemetry never leaves your PC.
+- **[Live web dashboard](https://snitch.doodesch.de)** - opens straight to your local game over WebSocket; your telemetry never leaves your PC.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead (`Snitch.Self`).
 - **Modder API** - a zero-overhead no-op when Snitch isn't installed, so you can ship it with no hard dependency.
 
@@ -66,8 +69,9 @@ Open the in-game console:
 - `snitch ablate <lever>` - measure a subsystem's causal frame cost (built-in `npc` lever; `snitch levers` lists them).
 - `snitch report [md|csv|all]` - export to `Mods/Snitch/runs/`.
 
-Or open the **web dashboard** (bundled offline at `http://localhost:6140/`) - it auto-connects and shows
-frame times, section costs, and state distributions live.
+Or open the **web dashboard** at **[snitch.doodesch.de](https://snitch.doodesch.de)** (or the copy bundled
+offline at `http://localhost:6140/`) - it auto-connects and shows frame times, section costs, and state
+distributions live.
 
 ## For modders
 
@@ -80,14 +84,17 @@ Snitch.Api.Snitch.RegisterStateProvider("MyMod.Jobs", () => ...);          // a 
 Snitch.Api.Snitch.RegisterAblationLever("mymod.fx", off, on);              // a causal A/B lever
 ```
 
-See the `SnitchExample` mod for the full surface.
+See the **[SnitchExample](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** mod for the full
+surface, and the **[Modder API wiki page](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki/Modder-API)**.
 
 ## How it works
 
 ProfilerRecorder engine counters are inert in Schedule I's IL2CPP build, so Snitch relies on **frame-time +
 GC** as the truth and **self-measured section timing** (Harmony accumulators) for attribution. The web
-dashboard is served both from a hosted site and bundled inside the mod for offline use; either way the page
-connects straight to `ws://127.0.0.1:6140` so your data stays on your machine.
+dashboard ([snitch.doodesch.de](https://snitch.doodesch.de), source at
+[ScheduleOne-SnitchWeb](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)) is served both from that
+hosted site and bundled inside the mod for offline use; either way the page connects straight to
+`ws://127.0.0.1:6140` so your data stays on your machine.
 
 ## Compatibility
 

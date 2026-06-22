@@ -13,13 +13,15 @@ costs, and entity-state distributions in real time, and make your mod (or vanill
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
 
+**[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Support](https://support.doodesch.de)**
+
 ## Features
 
 - **Frame time** distribution + fps + GC pressure - the load-bearing, build-independent truth.
 - **Section costs** - time named code sections (yours, or vanilla hot paths like `NPCMovement.Update`).
 - **State distributions** - NPCs by movement/visibility, trash by physics state, quests by state, + your own.
 - **Ablation A/B** - toggle a subsystem off and measure the real frame-time delta (causal "total cost").
-- **Live web dashboard** - opens straight to your local game over WebSocket; telemetry never leaves your PC.
+- **[Live web dashboard](https://snitch.doodesch.de)** - opens straight to your local game over WebSocket; telemetry never leaves your PC.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead.
 - **Modder API** - a zero-overhead no-op when Snitch isn't installed; no hard dependency.
 
@@ -32,9 +34,10 @@ costs, and entity-state distributions in real time, and make your mod (or vanill
 
 ## Use it
 
-Open the in-game console: `snitch start`, then `snitch hud on`. Or open the web dashboard - it auto-connects
-and shows everything live. Console verbs: `start, stop, status, frame, top, sections, states, counters, hud,
-vanilla on|off, ablate <lever>, levers, report`. Reports are written to `Mods/Snitch/runs/`.
+Open the in-game console: `snitch start`, then `snitch hud on`. Or open the web dashboard at
+**[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live. Console
+verbs: `start, stop, status, frame, top, sections, states, counters, hud, vanilla on|off, ablate <lever>,
+levers, report`. Reports are written to `Mods/Snitch/runs/`.
 
 ## For modders
 
@@ -45,6 +48,8 @@ using (Snitch.Api.Snitch.Sample("MyMod.Work")) { ... }                    // tim
 Snitch.Api.Snitch.RegisterCounter("MyMod.Queue", () => _q.Count, "items"); // a gauge
 Snitch.Api.Snitch.RegisterStateProvider("MyMod.Jobs", () => ...);          // a distribution
 ```
+
+Full example: **[ScheduleOne-SnitchExample](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)**.
 
 ## Notes
 

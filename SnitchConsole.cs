@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using HarmonyLib;
+using MelonLoader;
 using Snitch.Config;
 using Snitch.Engine;
 using Snitch.Registries;
@@ -58,7 +59,7 @@ namespace Snitch
                     case "sections": Top(IntArg(p, 2, 8), cmd == "sections"); break;
                     case "states": States(p.Length > 2 ? p[2] : null); break;
                     case "counters": Counters(); break;
-                    case "hud": Preferences.SetShowHud(BoolArg(p, 2, !Preferences.ShowHud)); Log("HUD = " + Preferences.ShowHud); break;
+                    case "hud": Hud(p); break;
                     case "vanilla": Vanilla(p); break;
                     case "report": Report(p.Length > 2 ? p[2].ToLowerInvariant() : "all"); break;
                     case "ablate": Ablate(p); break;
@@ -76,8 +77,39 @@ namespace Snitch
 
         private static void Help()
         {
-            Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | hud [on|off] | "
+            Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | "
+                + "hud [on|off|move <x> <y>|font <n>|reset] | "
                 + "vanilla [on|off] | ablate <lever> | levers | report [md|csv|all]");
+        }
+
+        // hud on|off (toggle) plus move/font/reset. Position/size changes persist immediately (one Save each); the
+        // overlay can also be dragged in-game (see ProfilerHud.HandleInput).
+        private static void Hud(string[] p)
+        {
+            string sub = p.Length > 2 ? p[2].ToLowerInvariant() : null;
+            switch (sub)
+            {
+                case "move":
+                    Preferences.SetHudPos(FloatArg(p, 3, Preferences.HudX), FloatArg(p, 4, Preferences.HudY));
+                    MelonPreferences.Save();
+                    Log($"HUD pos = {Preferences.HudX:F0},{Preferences.HudY:F0}");
+                    break;
+                case "font":
+                    Preferences.SetHudFontSize((int)FloatArg(p, 3, Preferences.HudFontSize));
+                    MelonPreferences.Save();
+                    Log("HUD font = " + Preferences.HudFontSize);
+                    break;
+                case "reset":
+                    Preferences.SetHudPos(8f, 8f);
+                    Preferences.SetHudFontSize(12);
+                    MelonPreferences.Save();
+                    Log("HUD reset (pos 8,8 font 12)");
+                    break;
+                default:   // null / on / off / true / 1 ... -> original show/hide toggle
+                    Preferences.SetShowHud(BoolArg(p, 2, !Preferences.ShowHud));
+                    Log("HUD = " + Preferences.ShowHud);
+                    break;
+            }
         }
 
         private static void Status()
@@ -160,6 +192,13 @@ namespace Snitch
         private static int IntArg(string[] p, int idx, int def)
         {
             if (p.Length > idx && int.TryParse(p[idx], out int v)) return v;
+            return def;
+        }
+
+        private static float FloatArg(string[] p, int idx, float def)
+        {
+            if (p.Length > idx && float.TryParse(p[idx], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float v)) return v;
             return def;
         }
 

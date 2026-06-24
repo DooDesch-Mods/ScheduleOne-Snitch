@@ -21,6 +21,9 @@ namespace Snitch.Config
         private static MelonPreferences_Entry<bool> _autoStart;
         private static MelonPreferences_Entry<bool> _autoInstrument;
         private static MelonPreferences_Entry<bool> _showHud;
+        private static MelonPreferences_Entry<int> _hudFontSize;
+        private static MelonPreferences_Entry<float> _hudX;
+        private static MelonPreferences_Entry<float> _hudY;
         private static MelonPreferences_Entry<float> _pollHz;
 
         // server
@@ -58,6 +61,18 @@ namespace Snitch.Config
             _showHud = Create("ShowHud", false, "Show profiler HUD",
                 "On-screen overlay with frame stats, top section costs, counters and state distributions. OFF by " +
                 "default; toggle live with 'snitch hud' or the F6 hotkey. Only draws while sampling is armed.");
+            _hudFontSize = Create("HudFontSize", 12, "HUD font size",
+                "On-screen overlay text size (px). The overlay auto-resizes to fit, so this also sets how big the HUD is. " +
+                "Clamped 8-32. Change live with 'snitch hud font <n>' or by dragging the overlay's bottom-right corner.",
+                new MelonLoader.Preferences.ValueRange<int>(8, 32));
+            _hudX = Create("HudX", 8f, "HUD position X",
+                "Overlay left edge in pixels from the left. Kept on-screen automatically. " +
+                "Change live with 'snitch hud move <x> <y>' or by dragging the overlay.",
+                new MelonLoader.Preferences.ValueRange<float>(0f, 4000f));
+            _hudY = Create("HudY", 8f, "HUD position Y",
+                "Overlay top edge in pixels from the top. Kept on-screen automatically. " +
+                "Change live with 'snitch hud move <x> <y>' or by dragging the overlay.",
+                new MelonLoader.Preferences.ValueRange<float>(0f, 4000f));
             _pollHz = Create("PollHz", 4f, "Provider poll rate (Hz)",
                 "How often the entity STATE providers and counters are sampled (the expensive part). 4 Hz is plenty " +
                 "for distributions and keeps the profiler's own cost flat. Frame-time itself is always sampled every frame. Clamped 1-30.",
@@ -93,6 +108,11 @@ namespace Snitch.Config
         internal static bool AutoInstrument => _autoInstrument?.Value ?? true;
         internal static bool ShowHud => _showHud?.Value ?? false;
         internal static void SetShowHud(bool v) { if (_showHud != null) _showHud.Value = v; }
+        internal static int HudFontSize => Mathf.Clamp(_hudFontSize?.Value ?? 12, 8, 32);
+        internal static float HudX => _hudX?.Value ?? 8f;   // screen-clamped at draw time
+        internal static float HudY => _hudY?.Value ?? 8f;   // screen-clamped at draw time
+        internal static void SetHudFontSize(int v) { if (_hudFontSize != null) _hudFontSize.Value = Mathf.Clamp(v, 8, 32); }
+        internal static void SetHudPos(float x, float y) { if (_hudX != null) _hudX.Value = x; if (_hudY != null) _hudY.Value = y; }
         internal static float PollHz => Mathf.Clamp(_pollHz?.Value ?? 4f, 1f, 30f);
 
         internal static bool ServerEnabled => _serverEnabled?.Value ?? true;

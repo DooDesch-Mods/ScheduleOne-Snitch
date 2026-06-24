@@ -5,11 +5,11 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de](https://support.doodesch.de).
 
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
-> [S1API](https://github.com/ifBars/S1API) - any other mod's systems. It ships with an in-game HUD and a live
-> **[web dashboard](https://snitch.doodesch.de)** so you can see frame times, section costs, and entity-state
-> distributions in real time.
+> [S1API](https://github.com/ifBars/S1API) - any other mod's systems. It ships with a movable, resizable
+> in-game HUD and a live **[web dashboard](https://snitch.doodesch.de)** so you can see frame times, section
+> costs, and entity-state distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -52,6 +52,8 @@ profiler is idle until you run `snitch start`.
 | `EnableInMultiplayer` | `true` | Profiling runs locally on every peer; state-mutating levers stay host-only. |
 | `AutoStart` | `false` | Begin sampling automatically on world load. |
 | `ShowHud` | `false` | Show the on-screen overlay (toggle with `snitch hud` or F6). |
+| `HudFontSize` | `12` | Overlay text size (px). It auto-resizes to fit, so this also sets how big the HUD is. |
+| `HudX` / `HudY` | `8` / `8` | Overlay position (pixels from the top-left). Kept on-screen automatically. |
 | `PollHz` | `4` | How often state providers + counters are sampled (frame-time is every frame). |
 | `ServerEnabled` | `true` | Run the loopback data server for the web dashboard. |
 | `ServerPort` | `6140` | The loopback port (127.0.0.1 only). |
@@ -63,7 +65,7 @@ profiler is idle until you run `snitch start`.
 Open the in-game console:
 
 - `snitch start` / `snitch stop` - arm / disarm sampling.
-- `snitch hud [on|off]` - the on-screen overlay.
+- `snitch hud [on|off|move <x> <y>|font <n>|reset]` - the on-screen overlay. Drag it with the mouse (or its corner to resize), or toggle with F6.
 - `snitch top` / `snitch sections` / `snitch states` / `snitch counters` - log the current numbers.
 - `snitch vanilla on` - attribute CPU cost to vanilla hot paths (e.g. `NPCMovement.Update/FixedUpdate`).
 - `snitch ablate <lever>` - measure a subsystem's causal frame cost (built-in `npc` lever; `snitch levers` lists them).

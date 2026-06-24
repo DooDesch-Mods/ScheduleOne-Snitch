@@ -4,7 +4,7 @@ using Snitch.Config;
 using Snitch.Engine;
 using Snitch.Server;
 
-[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.0.2", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
+[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.1.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
 [assembly: MelonOptionalDependencies("ModManager&PhoneApp")]
 
@@ -44,7 +44,7 @@ namespace Snitch
             if (Preferences.Enabled && Preferences.ServerEnabled)
                 SnitchServer.Start(Preferences.ServerPort, Preferences.ServerToken, Preferences.AllowedOrigins);
 
-            Log.Msg("Snitch v1.0.2 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
+            Log.Msg("Snitch v1.1.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -70,6 +70,13 @@ namespace Snitch
             {
                 return;
             }
+            try
+            {
+                // F6 toggles the overlay; while it is shown, let the user drag it (no-ops if the cursor is locked).
+                if (Input.GetKeyDown(KeyCode.F6)) Preferences.SetShowHud(!Preferences.ShowHud);
+                if (SnitchCore.Active && Preferences.ShowHud) UI.ProfilerHud.HandleInput();
+            }
+            catch { /* never let HUD input break the update loop */ }
             if (Preferences.Enabled) SnitchCore.Tick();
         }
 

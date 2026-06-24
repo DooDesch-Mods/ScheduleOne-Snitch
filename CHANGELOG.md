@@ -2,6 +2,21 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.1.0] - 2026-06-24
+
+The on-screen HUD is now movable and resizable, and remembers where you put it.
+
+### Added
+- HUD position and font size are adjustable and persist across restarts: `snitch hud move <x> <y>`,
+  `snitch hud font <n>`, and `snitch hud reset` (back to defaults), plus matching `HudX`, `HudY`, and
+  `HudFontSize` settings (sliders in the Mod Manager UI). The overlay auto-fits, so a bigger font makes a
+  bigger window.
+- Drag the HUD with the mouse: grab the body to move it, or its bottom-right corner to change the font size
+  (works while the cursor is free, e.g. with the phone or pause menu open).
+
+### Fixed
+- The `F6` hotkey now actually toggles the HUD (it was documented but never wired up).
+
 ## [1.0.2] - 2026-06-22
 
 Less code in mods, more profiling for free. No change to the host data/wire protocol or the bridge ABI, so

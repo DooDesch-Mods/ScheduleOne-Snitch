@@ -5,10 +5,10 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de](https://support.doodesch.de).
 
 Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API - any other
-mod's systems. It ships with an in-game HUD and a live **web dashboard** so you can see frame times, section
-costs, and entity-state distributions in real time, and make your mod (or vanilla gameplay) faster.
+mod's systems. It ships with a movable, resizable in-game HUD and a live **web dashboard** so you can see frame
+times, section costs, and entity-state distributions in real time, and make your mod (or vanilla gameplay) faster.
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -34,7 +34,8 @@ costs, and entity-state distributions in real time, and make your mod (or vanill
 
 ## Use it
 
-Open the in-game console: `snitch start`, then `snitch hud on`. Or open the web dashboard at
+Open the in-game console: `snitch start`, then `snitch hud on` (drag the overlay to move it, or its corner to
+resize the text; F6 toggles it). Or open the web dashboard at
 **[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live. Console
 verbs: `start, stop, status, frame, top, sections, states, counters, hud, vanilla on|off, ablate <lever>,
 levers, report`. Reports are written to `Mods/Snitch/runs/`.

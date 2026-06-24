@@ -51,6 +51,14 @@
     <Compile Remove="Compat/GlobalUsings.Mono.cs" Condition="'$(Backend)' != 'mono'" />
   </ItemGroup>
 
+  <!-- On CI the build-libs repo is checked out into ./Workspace, so its source (the shared uGUI design-system
+       under Workspace/ui, etc.) would otherwise be swept into the default compile glob. Snitch references only
+       the Workspace/lib DLLs and compiles none of that source. Locally Workspace is a sibling folder, so this
+       Remove is a no-op there. -->
+  <ItemGroup>
+    <Compile Remove="Workspace/**/*.cs" />
+  </ItemGroup>
+
   <!-- Mod loader references (both backends) -->
   <ItemGroup>
     <Reference Include="MelonLoader">

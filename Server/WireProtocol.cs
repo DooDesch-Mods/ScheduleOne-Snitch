@@ -26,7 +26,7 @@ namespace Snitch.Server
             FrameStats f = SnitchCore.LatestFrame;
             var sb = new StringBuilder(8192);
             sb.Append("{\"type\":\"snapshot\",\"v\":").Append(Version).Append(",\"t\":").Append(frame).Append(',');
-            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.1.0\",\"scene\":\"").Append(Esc(scene))
+            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.2.0\",\"scene\":\"").Append(Esc(scene))
               .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false").Append("},");
 
             sb.Append("\"frame\":{");
@@ -156,7 +156,7 @@ namespace Snitch.Server
 
         internal static string BuildHealth(int frame, string scene)
         {
-            return "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.1.0\",\"active\":" + (SnitchCore.Active ? "true" : "false")
+            return "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.2.0\",\"active\":" + (SnitchCore.Active ? "true" : "false")
                  + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame + "}";
         }
 

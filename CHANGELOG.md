@@ -2,6 +2,30 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.2.0] - 2026-06-25
+
+The on-screen overlay becomes a small windowing layer, every mod gets its own panel, and there is a combined
+log timeline. The modder bridge ABI is unchanged (additive), so existing integrations keep working.
+
+### Added
+- Multi-window overlay: the profiler HUD is now an "Overview" window alongside per-mod panels and a log
+  "Timeline". Each window is independently shown/hidden, dragged (title bar) and resized (bottom-right grip),
+  with a scrollable body and a layout that persists across restarts.
+- Per-mod panels: any mod that reports data gets its own toggleable panel of counters, state distributions,
+  free text, action buttons, toggles and a log channel - in the overlay and the web dashboard. New modder API:
+  the `Profiler.RegisterPanel(...)` fluent builder (`Counter`/`State`/`Text`/`Action`/`Toggle`/`Log`) and
+  `Profiler.Log(...)`.
+- Log timeline: a combined, chronological view of all channels (each mod plus Snitch and the console), with
+  per-mod filtering, both in-game and on the dashboard.
+- Arm sampling from the overlay: Start / Stop / Reset buttons in the Overview (no console needed). `F6` toggles
+  the overlay and always summons the Overview, so it can't get stuck closed.
+- New console commands: `snitch panels`, `snitch panel <id> [on|off|move|size|reset]`, `snitch act <id>`,
+  `snitch toggle <id>`, `snitch log [<channel>|all]`.
+
+### Changed
+- The on-screen "resize" is now a real window resize (width/height with scrolling); font size is a separate
+  setting. Button labels no longer clip descenders.
+
 ## [1.1.0] - 2026-06-24
 
 The on-screen HUD is now movable and resizable, and remembers where you put it.

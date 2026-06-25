@@ -5,7 +5,7 @@ using Snitch.Engine;
 using Snitch.Logging;
 using Snitch.Server;
 
-[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.1.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
+[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.2.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
 [assembly: MelonOptionalDependencies("ModManager&PhoneApp")]
 
@@ -48,7 +48,7 @@ namespace Snitch
             if (Preferences.Enabled && Preferences.ServerEnabled)
                 SnitchServer.Start(Preferences.ServerPort, Preferences.ServerToken, Preferences.AllowedOrigins);
 
-            Log.Msg("Snitch v1.1.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
+            Log.Msg("Snitch v1.2.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)

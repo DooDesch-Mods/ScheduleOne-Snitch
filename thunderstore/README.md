@@ -5,10 +5,11 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de](https://support.doodesch.de).
 
 Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API - any other
-mod's systems. It ships with a movable, resizable in-game HUD and a live **web dashboard** so you can see frame
-times, section costs, and entity-state distributions in real time, and make your mod (or vanilla gameplay) faster.
+mod's systems. It ships with a movable, resizable multi-window in-game overlay (each mod gets its own panel), a
+combined log timeline, and a live **web dashboard** so you can see frame times, section costs, and entity-state
+distributions in real time, and make your mod (or vanilla gameplay) faster.
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -20,6 +21,8 @@ times, section costs, and entity-state distributions in real time, and make your
 - **Frame time** distribution + fps + GC pressure - the load-bearing, build-independent truth.
 - **Section costs** - time named code sections (yours, or vanilla hot paths like `NPCMovement.Update`).
 - **State distributions** - NPCs by movement/visibility, trash by physics state, quests by state, + your own.
+- **Per-mod panels** - each mod that reports data gets its own toggleable, movable, resizable panel (counters, state, text, buttons, toggles).
+- **Log timeline** - a combined, chronological view of every mod's log output, filterable per mod.
 - **Ablation A/B** - toggle a subsystem off and measure the real frame-time delta (causal "total cost").
 - **[Live web dashboard](https://snitch.doodesch.de)** - opens straight to your local game over WebSocket; telemetry never leaves your PC.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead.
@@ -34,11 +37,12 @@ times, section costs, and entity-state distributions in real time, and make your
 
 ## Use it
 
-Open the in-game console: `snitch start`, then `snitch hud on` (drag the overlay to move it, or its corner to
-resize the text; F6 toggles it). Or open the web dashboard at
-**[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live. Console
-verbs: `start, stop, status, frame, top, sections, states, counters, hud, vanilla on|off, ablate <lever>,
-levers, report`. Reports are written to `Mods/Snitch/runs/`.
+Press **F6** for the overlay (or `snitch hud on`), then `snitch start` (or the Start button in the Overview
+window). Drag windows by the title bar, resize from the bottom-right grip; open each mod's panel from the
+Overview's `windows` list. Or open the web dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** -
+it auto-connects and shows everything live. Console verbs: `start, stop, status, frame, top, sections, states,
+counters, hud, panels, panel <id>, act, toggle, log, vanilla on|off, ablate <lever>, levers, report`. Reports
+go to `Mods/Snitch/runs/`.
 
 ## For modders
 
@@ -46,10 +50,12 @@ Your mod's `OnUpdate` etc. are auto-timed with zero code (`<YourMod>.OnUpdate`).
 (or reference `Snitch.Api.dll`) - a no-op when Snitch isn't installed:
 
 ```csharp
-using Snitch.Api;   // Profiler, StateSnapshot
+using Snitch.Api;   // Profiler, Panel, StateSnapshot
+Panel p = Profiler.RegisterPanel("MyMod", "My Mod");             // your own panel in the overlay + dashboard
+p.Counter("Queue", () => _q.Count, "items");                     // a gauge
+p.Action("Flush", () => Flush());                                // a button (replaces a debug hotkey)
+p.Toggle("Verbose", () => _v, x => _v = x);                      // an on/off control
 using (Profiler.Sample("MyMod.Work")) { ... }                    // hand-time a sub-section
-Profiler.RegisterCounter("MyMod.Queue", () => _q.Count, "items"); // a gauge
-Profiler.RegisterStateProvider("MyMod.Jobs", () => ...);          // a distribution
 ```
 
 Or just name a class `SnitchProbe` with a static `Register()` - Snitch discovers and calls it automatically.

@@ -25,6 +25,7 @@ namespace Snitch.Config
         private static MelonPreferences_Entry<float> _hudX;
         private static MelonPreferences_Entry<float> _hudY;
         private static MelonPreferences_Entry<float> _pollHz;
+        private static MelonPreferences_Entry<string> _windowLayouts;
 
         // server
         private static MelonPreferences_Entry<bool> _serverEnabled;
@@ -77,6 +78,10 @@ namespace Snitch.Config
                 "How often the entity STATE providers and counters are sampled (the expensive part). 4 Hz is plenty " +
                 "for distributions and keeps the profiler's own cost flat. Frame-time itself is always sampled every frame. Clamped 1-30.",
                 new MelonLoader.Preferences.ValueRange<float>(1f, 30f));
+            _windowLayouts = Create("WindowLayouts", "", "Overlay window layouts (managed)",
+                "Internal: saved positions, sizes and visibility of the Snitch overlay windows (the overview, the " +
+                "per-mod panels and the log timeline). Managed by dragging the windows or the 'snitch panel ...' console - " +
+                "you normally do not edit this by hand.");
 
             _serverEnabled = Create("ServerEnabled", true, "Enable local data server",
                 "ON (default): run a loopback HTTP + WebSocket server so the SnitchWeb dashboard (hosted or the bundled " +
@@ -114,6 +119,9 @@ namespace Snitch.Config
         internal static void SetHudFontSize(int v) { if (_hudFontSize != null) _hudFontSize.Value = Mathf.Clamp(v, 8, 32); }
         internal static void SetHudPos(float x, float y) { if (_hudX != null) _hudX.Value = x; if (_hudY != null) _hudY.Value = y; }
         internal static float PollHz => Mathf.Clamp(_pollHz?.Value ?? 4f, 1f, 30f);
+
+        internal static string WindowLayouts => _windowLayouts?.Value ?? "";
+        internal static void SetWindowLayouts(string v) { if (_windowLayouts != null) _windowLayouts.Value = v ?? ""; }
 
         internal static bool ServerEnabled => _serverEnabled?.Value ?? true;
         internal static int ServerPort => Mathf.Clamp(_serverPort?.Value ?? 6140, 1024, 65535);

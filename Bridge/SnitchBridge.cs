@@ -23,5 +23,13 @@ namespace Snitch.Bridge
         public static Action<string> UnregisterStateProvider;
         public static Action<string> Mark;
         public static Action<string, Action, Action> RegisterAblationLever;    // name, apply(off), restore(on)
+
+        // ----- per-mod panels (added; additive ABI, AbiVersion unchanged) -----
+        public static Action<string, string> RegisterPanel;                                 // panelId, title
+        public static Action<string, string, string, Action> RegisterAction;                // panelId, actionId, label, run
+        public static Action<string, string, string, Func<bool>, Action<bool>> RegisterToggle; // panelId, toggleId, label, get, set
+        public static Action<string, Func<string>> RegisterText;                            // panelId, multi-line readout provider
+        public static Action<string> BindPanelLog;                                          // panelId -> show its log channel in the panel
+        public static Action<string, int, string> Log;                                      // channel, level(0=info,1=warn,2=error), message
     }
 }

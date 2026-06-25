@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using Snitch.Ablation;
 using Snitch.Engine;
+using Snitch.Logging;
+using Snitch.Panels;
 using Snitch.Registries;
 using Snitch.Sections;
 
@@ -67,6 +69,15 @@ namespace Snitch.Bridge
             };
 
             SnitchBridge.RegisterAblationLever = (name, apply, restore) => LeverRegistry.RegisterDelegate(name, apply, restore);
+
+            // Panels/logs are available regardless of sampling state: a mod's panel + log channel exist as soon as
+            // it registers them, so the overlay/dashboard can show a mod's controls and output even before 'snitch start'.
+            SnitchBridge.RegisterPanel = (id, title) => PanelRegistry.RegisterPanel(id, title);
+            SnitchBridge.RegisterAction = (panelId, actionId, label, run) => PanelRegistry.RegisterAction(panelId, actionId, label, run);
+            SnitchBridge.RegisterToggle = (panelId, toggleId, label, get, set) => PanelRegistry.RegisterToggle(panelId, toggleId, label, get, set);
+            SnitchBridge.RegisterText = (panelId, provider) => PanelRegistry.RegisterText(panelId, provider);
+            SnitchBridge.BindPanelLog = panelId => PanelRegistry.BindPanelLog(panelId);
+            SnitchBridge.Log = (channel, level, message) => LogHub.Write(channel, level, message);
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using MelonLoader;
 using Snitch.Config;
 using Snitch.Engine;
+using Snitch.Logging;
 using Snitch.Server;
 
 [assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.1.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
@@ -31,6 +32,9 @@ namespace Snitch
 
             Preferences.Initialize();
 
+            // Capture log output (Unity threaded callback -> "Unity" channel; mods feed their own channels via the API).
+            LogHub.Install();
+
             // Publish the modder API bridge as early as possible so other mods' Snitch.Api calls bind.
             Snitch.Bridge.BridgeHost.Install();
 
@@ -54,6 +58,9 @@ namespace Snitch
             if (_inWorld && Preferences.Enabled)
             {
                 SnitchCore.RegisterBuiltins();
+                // Discover each mod's SnitchProbe now (not just on 'snitch start') so per-mod panels, counters and
+                // log channels exist as soon as you enter the world - the overlay is usable without arming sampling.
+                Snitch.Vanilla.AutoInstrument.DiscoverProbes();
                 if (Preferences.AutoStart) SnitchCore.Start();
             }
         }
@@ -72,28 +79,42 @@ namespace Snitch
             }
             try
             {
-                // F6 toggles the overlay; while it is shown, let the user drag it (no-ops if the cursor is locked).
-                if (Input.GetKeyDown(KeyCode.F6)) Preferences.SetShowHud(!Preferences.ShowHud);
-                if (SnitchCore.Active && Preferences.ShowHud) UI.ProfilerHud.HandleInput();
+                // F6 is the always-available entry point. It summons the overlay AND guarantees the Overview window
+                // (which hosts the per-panel toggle buttons) is visible - so the overlay can never get stuck closed
+                // after the user shuts the Overview's own [x]. Press again (with the Overview up) to dismiss everything.
+                if (Input.GetKeyDown(KeyCode.F6))
+                {
+                    if (!Preferences.ShowHud || !UI.WindowLayout.IsVisible("overview"))
+                    {
+                        Preferences.SetShowHud(true);
+                        UI.WindowLayout.SetVisible("overview", true);   // persists the layout too
+                    }
+                    else Preferences.SetShowHud(false);
+                }
+                if (Preferences.ShowHud) UI.WindowManager.HandleInput();
             }
-            catch { /* never let HUD input break the update loop */ }
+            catch { /* never let overlay input break the update loop */ }
             if (Preferences.Enabled) SnitchCore.Tick();
         }
 
         public override void OnGUI()
         {
-            if (!_inWorld || !SnitchCore.Active || !Preferences.ShowHud) return;
-            UI.ProfilerHud.Draw();
+            // Draw whenever the overlay is on (not only while sampling) so the log timeline + panel controls are
+            // usable before 'snitch start'; the data readouts simply stay empty until sampling is armed.
+            if (!_inWorld || !Preferences.ShowHud) return;
+            UI.WindowManager.Draw();
         }
 
         public override void OnApplicationQuit()
         {
             SnitchServer.Stop();
+            LogHub.Uninstall();
         }
 
         public override void OnDeinitializeMelon()
         {
             SnitchServer.Stop();
+            LogHub.Uninstall();
         }
     }
 }

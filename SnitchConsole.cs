@@ -5,8 +5,11 @@ using HarmonyLib;
 using MelonLoader;
 using Snitch.Config;
 using Snitch.Engine;
+using Snitch.Logging;
+using Snitch.Panels;
 using Snitch.Registries;
 using Snitch.Sections;
+using Snitch.UI;
 
 namespace Snitch
 {
@@ -45,6 +48,7 @@ namespace Snitch
             int frame = Time.frameCount;
             if (frame == _lastFrame && sig == _lastSig) return true;
             _lastFrame = frame; _lastSig = sig;
+            LogHub.Write("Console", 0, sig);
 
             string cmd = p.Length > 1 ? p[1].ToLowerInvariant() : "status";
             try
@@ -60,6 +64,11 @@ namespace Snitch
                     case "states": States(p.Length > 2 ? p[2] : null); break;
                     case "counters": Counters(); break;
                     case "hud": Hud(p); break;
+                    case "panels": PanelsList(); break;
+                    case "panel": PanelCmd(p); break;
+                    case "act": ActCmd(p); break;
+                    case "toggle": ToggleCmd(p); break;
+                    case "log": LogCmd(p); break;
                     case "vanilla": Vanilla(p); break;
                     case "report": Report(p.Length > 2 ? p[2].ToLowerInvariant() : "all"); break;
                     case "ablate": Ablate(p); break;
@@ -79,6 +88,8 @@ namespace Snitch
         {
             Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | "
                 + "hud [on|off|move <x> <y>|font <n>|reset] | "
+                + "panels | panel <id> [on|off|move <x> <y>|size <w> <h>|reset] | "
+                + "act <actionId> | toggle <toggleId> [on|off] | log [<channel>|all] [n] | "
                 + "vanilla [on|off] | ablate <lever> | levers | report [md|csv|all]");
         }
 
@@ -109,6 +120,75 @@ namespace Snitch
                     Preferences.SetShowHud(BoolArg(p, 2, !Preferences.ShowHud));
                     Log("HUD = " + Preferences.ShowHud);
                     break;
+            }
+        }
+
+        // ----- per-mod panels / overlay windows -----
+
+        private static void PanelsList()
+        {
+            Log($"overview [{(WindowLayout.IsVisible("overview") ? "on" : "off")}]  timeline [{(WindowLayout.IsVisible("timeline") ? "on" : "off")}]");
+            var panels = PanelRegistry.All;
+            if (panels.Count == 0) { Log("no mod panels registered yet (enter the world; panels register on probe discovery)."); return; }
+            for (int i = 0; i < panels.Count; i++)
+            {
+                PanelModel p = panels[i];
+                Log($"  {p.Id,-16} [{(WindowLayout.IsVisible(p.Id) ? "on" : "off")}]  actions={p.Actions.Count} toggles={p.Toggles.Count} title=\"{p.Title}\"");
+            }
+        }
+
+        // panel <id> [on|off|move <x> <y>|size <w> <h>|reset]. <id> can be a mod panel id, "overview" or "timeline".
+        private static void PanelCmd(string[] p)
+        {
+            if (p.Length <= 2) { Log("usage: snitch panel <id> [on|off|move <x> <y>|size <w> <h>|reset]. 'snitch panels' lists ids."); return; }
+            string id = p[2];
+            string sub = p.Length > 3 ? p[3].ToLowerInvariant() : "on";
+            switch (sub)
+            {
+                case "on": WindowLayout.SetVisible(id, true); Log($"panel {id} = on"); break;
+                case "off": WindowLayout.SetVisible(id, false); Log($"panel {id} = off"); break;
+                case "move":
+                    WindowLayout.Get(id, 8f, 8f, 320f, 240f, true);
+                    WindowLayout.SetPos(id, FloatArg(p, 4, 8f), FloatArg(p, 5, 8f));
+                    WindowLayout.Save();
+                    Log($"panel {id} moved");
+                    break;
+                case "size":
+                    WindowLayout.Get(id, 8f, 8f, 320f, 240f, true);
+                    WindowLayout.SetSize(id, FloatArg(p, 4, 320f), FloatArg(p, 5, 240f));
+                    WindowLayout.Save();
+                    Log($"panel {id} resized");
+                    break;
+                case "reset": WindowLayout.Reset(id); Log($"panel {id} reset"); break;
+                default: Log("usage: snitch panel <id> [on|off|move <x> <y>|size <w> <h>|reset]"); break;
+            }
+        }
+
+        private static void ActCmd(string[] p)
+        {
+            if (p.Length <= 2) { Log("usage: snitch act <actionId> (see the panel; ids look like 'Siesta:force-cosmetic')."); return; }
+            Log(PanelRegistry.Invoke(p[2]) ? "ran " + p[2] : "no action '" + p[2] + "'");
+        }
+
+        private static void ToggleCmd(string[] p)
+        {
+            if (p.Length <= 2) { Log("usage: snitch toggle <toggleId> [on|off] (omit to flip)."); return; }
+            string id = p[2];
+            bool val = BoolArg(p, 3, !PanelRegistry.GetToggle(id));
+            Log(PanelRegistry.SetToggle(id, val) ? $"{id} = {val}" : "no toggle '" + id + "'");
+        }
+
+        private static void LogCmd(string[] p)
+        {
+            string ch = p.Length > 2 ? p[2] : "all";
+            int n = IntArg(p, 3, 25);
+            var entries = (ch.Equals("all", StringComparison.OrdinalIgnoreCase)) ? LogHub.Timeline(n) : LogHub.Channel(ch, n);
+            if (entries.Count == 0) { Log($"log '{ch}': no entries (channels: {string.Join(", ", LogHub.Channels())})."); return; }
+            Log($"log '{ch}' (last {entries.Count}):");
+            foreach (LogEntry e in entries)
+            {
+                string lv = e.Lvl == 2 ? "E" : (e.Lvl == 1 ? "W" : "I");
+                Log($"  {e.Time} {lv} [{e.Ch}] {e.Msg}");
             }
         }
 
@@ -211,7 +291,11 @@ namespace Snitch
             return toggleDefault;
         }
 
-        internal static void Log(string msg) => Core.Log?.Msg("[snitch] " + msg);
+        internal static void Log(string msg)
+        {
+            Core.Log?.Msg("[snitch] " + msg);
+            LogHub.Write("Snitch", 0, msg);
+        }
     }
 
     [HarmonyPatch(typeof(Il2CppScheduleOne.Console), "SubmitCommand", new System.Type[] { typeof(string) })]

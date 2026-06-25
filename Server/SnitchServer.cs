@@ -167,7 +167,7 @@ namespace Snitch.Server
                     break;
                 case "/snapshot":
                     if (!TokenOk(req)) { res.StatusCode = 401; res.Close(); break; }
-                    WriteJson(res, SnitchCore.LatestJson ?? "{\"type\":\"snapshot\",\"v\":1,\"frame\":{},\"sections\":[],\"counters\":[],\"states\":[]}");
+                    WriteJson(res, SnitchCore.LatestJson ?? "{\"type\":\"snapshot\",\"v\":1,\"frame\":{},\"sections\":[],\"counters\":[],\"states\":[],\"panels\":[],\"logs\":{\"timeline\":[]}}");
                     break;
                 case "/caps":
                     if (!TokenOk(req)) { res.StatusCode = 401; res.Close(); break; }
@@ -187,17 +187,34 @@ namespace Snitch.Server
 
         private static void HandleControl(HttpListenerRequest req, HttpListenerResponse res)
         {
+            string body = "";
+            try { using var sr = new StreamReader(req.InputStream, Encoding.UTF8); body = sr.ReadToEnd(); } catch { }
+
             string cmd = req.QueryString["cmd"];
-            if (string.IsNullOrEmpty(cmd))
-            {
-                try { using var sr = new StreamReader(req.InputStream, Encoding.UTF8); string body = sr.ReadToEnd(); cmd = ExtractCmd(body); } catch { }
-            }
+            if (string.IsNullOrEmpty(cmd)) cmd = ExtractField(body, "cmd");
             cmd = (cmd ?? "").Trim().ToLowerInvariant();
+
             switch (cmd)
             {
                 case "start": _mainQueue.Enqueue(SnitchCore.Start); break;
                 case "stop": _mainQueue.Enqueue(SnitchCore.Stop); break;
                 case "reset": _mainQueue.Enqueue(() => { SnitchCore.Stop(); SnitchCore.Start(); }); break;
+                case "action":
+                {
+                    string id = req.QueryString["id"] ?? ExtractField(body, "id");
+                    if (string.IsNullOrEmpty(id)) { WriteJson(res, "{\"ok\":false,\"error\":\"missing id\"}"); return; }
+                    _mainQueue.Enqueue(() => Snitch.Panels.PanelRegistry.Invoke(id));
+                    break;
+                }
+                case "toggle":
+                {
+                    string id = req.QueryString["id"] ?? ExtractField(body, "id");
+                    if (string.IsNullOrEmpty(id)) { WriteJson(res, "{\"ok\":false,\"error\":\"missing id\"}"); return; }
+                    string vq = req.QueryString["value"] ?? ExtractField(body, "value");
+                    bool val = vq == "true" || vq == "1" || vq == "on";
+                    _mainQueue.Enqueue(() => Snitch.Panels.PanelRegistry.SetToggle(id, val));
+                    break;
+                }
                 default: WriteJson(res, "{\"ok\":false,\"error\":\"unknown cmd\"}"); return;
             }
             WriteJson(res, "{\"ok\":true,\"cmd\":\"" + cmd + "\"}");
@@ -353,15 +370,25 @@ namespace Snitch.Server
             }
         }
 
-        private static string ExtractCmd(string body)
+        /// <summary>Tiny field extractor for {"key":"value"} or {"key":value} without a JSON dependency. Returns the
+        /// string value (unquoted) or null. Handles quoted strings and bare tokens (true/false/numbers).</summary>
+        private static string ExtractField(string body, string key)
         {
-            // tiny extractor for {"cmd":"start"} without a JSON dependency
-            int i = body.IndexOf("\"cmd\"", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(body)) return null;
+            int i = body.IndexOf("\"" + key + "\"", StringComparison.OrdinalIgnoreCase);
             if (i < 0) return null;
-            int c = body.IndexOf(':', i); if (c < 0) return null;
-            int q1 = body.IndexOf('"', c + 1); if (q1 < 0) return null;
-            int q2 = body.IndexOf('"', q1 + 1); if (q2 < 0) return null;
-            return body.Substring(q1 + 1, q2 - q1 - 1);
+            int c = body.IndexOf(':', i + key.Length + 2); if (c < 0) return null;
+            int j = c + 1;
+            while (j < body.Length && (body[j] == ' ' || body[j] == '\t')) j++;
+            if (j >= body.Length) return null;
+            if (body[j] == '"')
+            {
+                int q2 = body.IndexOf('"', j + 1); if (q2 < 0) return null;
+                return body.Substring(j + 1, q2 - j - 1);
+            }
+            int end = j;
+            while (end < body.Length && body[end] != ',' && body[end] != '}' && body[end] != ']') end++;
+            return body.Substring(j, end - j).Trim();
         }
 
         private static string PlaceholderHtml()

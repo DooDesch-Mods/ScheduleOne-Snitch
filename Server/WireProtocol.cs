@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using Snitch.Engine;
+using Snitch.Logging;
+using Snitch.Panels;
 using Snitch.Registries;
 using Snitch.Sections;
 
@@ -21,7 +24,7 @@ namespace Snitch.Server
         internal static string BuildSnapshot(int frame, string scene)
         {
             FrameStats f = SnitchCore.LatestFrame;
-            var sb = new StringBuilder(2048);
+            var sb = new StringBuilder(8192);
             sb.Append("{\"type\":\"snapshot\",\"v\":").Append(Version).Append(",\"t\":").Append(frame).Append(',');
             sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.1.0\",\"scene\":\"").Append(Esc(scene))
               .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false").Append("},");
@@ -74,8 +77,81 @@ namespace Snitch.Server
                     }
                     sb.Append("]}");
                 }
-            sb.Append("]}");
+            sb.Append("],");
+
+            AppendPanels(sb);
+            sb.Append(',');
+            AppendLogs(sb);
+
+            sb.Append('}');
             return sb.ToString();
+        }
+
+        /// <summary>Per-mod panels: title + free-text readout + action buttons + toggles. Counters/state stay in the
+        /// top-level arrays (the dashboard groups them under the panel by id-prefix). Text/toggle delegates run here
+        /// on the main thread (called from SnitchCore.Poll).</summary>
+        private static void AppendPanels(StringBuilder sb)
+        {
+            sb.Append("\"panels\":[");
+            IReadOnlyList<PanelModel> panels = PanelRegistry.All;
+            bool firstPanel = true;
+            for (int i = 0; i < panels.Count; i++)
+            {
+                PanelModel p = panels[i];
+                if (!firstPanel) sb.Append(',');
+                firstPanel = false;
+
+                sb.Append("{\"id\":\"").Append(Esc(p.Id)).Append("\",\"title\":\"").Append(Esc(p.Title))
+                  .Append("\",\"hasLog\":").Append(p.HasLog ? "true" : "false").Append(",\"text\":\"");
+                sb.Append(Esc(EvalText(p))).Append("\",\"actions\":[");
+                for (int a = 0; a < p.Actions.Count; a++)
+                {
+                    if (a > 0) sb.Append(',');
+                    sb.Append("{\"id\":\"").Append(Esc(p.Actions[a].Id)).Append("\",\"label\":\"").Append(Esc(p.Actions[a].Label)).Append("\"}");
+                }
+                sb.Append("],\"toggles\":[");
+                for (int tg = 0; tg < p.Toggles.Count; tg++)
+                {
+                    if (tg > 0) sb.Append(',');
+                    bool val = false;
+                    try { val = p.Toggles[tg].Get != null && p.Toggles[tg].Get(); } catch { }
+                    sb.Append("{\"id\":\"").Append(Esc(p.Toggles[tg].Id)).Append("\",\"label\":\"").Append(Esc(p.Toggles[tg].Label))
+                      .Append("\",\"value\":").Append(val ? "true" : "false").Append('}');
+                }
+                sb.Append("]}");
+            }
+            sb.Append(']');
+        }
+
+        private static string EvalText(PanelModel p)
+        {
+            if (p.Texts.Count == 0) return "";
+            var tb = new StringBuilder(128);
+            for (int i = 0; i < p.Texts.Count; i++)
+            {
+                string s = null;
+                try { s = p.Texts[i]?.Invoke(); } catch { }
+                if (string.IsNullOrEmpty(s)) continue;
+                if (tb.Length > 0) tb.Append('\n');
+                tb.Append(s);
+            }
+            return tb.ToString();
+        }
+
+        /// <summary>The combined timeline (all channels, chronological). The dashboard derives per-mod views by
+        /// filtering on the channel field. Bounded slice so the snapshot stays small at the stream rate.</summary>
+        private static void AppendLogs(StringBuilder sb)
+        {
+            sb.Append("\"logs\":{\"timeline\":[");
+            List<LogEntry> entries = LogHub.Timeline(200);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                LogEntry e = entries[i];
+                sb.Append("{\"seq\":").Append(e.Seq).Append(",\"t\":\"").Append(Esc(e.Time)).Append("\",\"ch\":\"")
+                  .Append(Esc(e.Ch)).Append("\",\"lvl\":").Append(e.Lvl).Append(",\"msg\":\"").Append(Esc(e.Msg)).Append("\"}");
+            }
+            sb.Append("]}");
         }
 
         internal static string BuildHealth(int frame, string scene)

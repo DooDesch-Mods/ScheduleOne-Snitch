@@ -17,6 +17,7 @@ namespace Snitch.Bridge
     internal static class BridgeHost
     {
         private static readonly List<string> _recentMarks = new List<string>(32);
+        private static readonly HashSet<string> _hotlineMetrics = new HashSet<string>();
 
         internal static void Install()
         {
@@ -71,13 +72,50 @@ namespace Snitch.Bridge
             SnitchBridge.RegisterAblationLever = (name, apply, restore) => LeverRegistry.RegisterDelegate(name, apply, restore);
 
             // Panels/logs are available regardless of sampling state: a mod's panel + log channel exist as soon as
-            // it registers them, so the overlay/dashboard can show a mod's controls and output even before 'snitch start'.
-            SnitchBridge.RegisterPanel = (id, title) => PanelRegistry.RegisterPanel(id, title);
-            SnitchBridge.RegisterAction = (panelId, actionId, label, run) => PanelRegistry.RegisterAction(panelId, actionId, label, run);
-            SnitchBridge.RegisterToggle = (panelId, toggleId, label, get, set) => PanelRegistry.RegisterToggle(panelId, toggleId, label, get, set);
-            SnitchBridge.RegisterText = (panelId, provider) => PanelRegistry.RegisterText(panelId, provider);
-            SnitchBridge.BindPanelLog = panelId => PanelRegistry.BindPanelLog(panelId);
-            SnitchBridge.Log = (channel, level, message) => LogHub.Write(channel, level, message);
+            // it registers them, so the dashboard can show a mod's controls and output even before 'snitch start'.
+            // Each panel registration is ALSO forwarded to the Hotline framework (Hotline.Api shim, load-order-proof,
+            // a no-op if Hotline is absent): the in-game overlay now lives in Hotline, while Snitch keeps its own
+            // PanelRegistry for the web dashboard. Counters/state stay here and surface in the Hotline panel through a
+            // per-panel metrics text provider.
+            SnitchBridge.RegisterPanel = (id, title) =>
+            {
+                PanelRegistry.RegisterPanel(id, title);
+                Hotline.Api.Hud.RegisterPanel(id, title);
+                EnsureHotlineMetrics(id);
+            };
+            SnitchBridge.RegisterAction = (panelId, actionId, label, run) =>
+            {
+                PanelRegistry.RegisterAction(panelId, actionId, label, run);
+                Hotline.Api.Hud.RegisterAction(panelId, label, run);
+            };
+            SnitchBridge.RegisterToggle = (panelId, toggleId, label, get, set) =>
+            {
+                PanelRegistry.RegisterToggle(panelId, toggleId, label, get, set);
+                Hotline.Api.Hud.RegisterToggle(panelId, label, get, set);
+            };
+            SnitchBridge.RegisterText = (panelId, provider) =>
+            {
+                PanelRegistry.RegisterText(panelId, provider);
+                Hotline.Api.Hud.RegisterText(panelId, provider);
+            };
+            SnitchBridge.BindPanelLog = panelId =>
+            {
+                PanelRegistry.BindPanelLog(panelId);
+                Hotline.Api.Hud.BindPanelLog(panelId);
+            };
+            SnitchBridge.Log = (channel, level, message) =>
+            {
+                LogHub.Write(channel, level, message);
+                Hotline.Api.Hud.Log(channel, message, (Hotline.Api.LogLevel)level);
+            };
+        }
+
+        /// <summary>Register, once per panel, a Hotline text provider that renders that panel's Snitch counters/state
+        /// (matched by id-prefix) so the numeric profiler data appears inside the mod's Hotline window.</summary>
+        private static void EnsureHotlineMetrics(string panelId)
+        {
+            if (string.IsNullOrEmpty(panelId) || !_hotlineMetrics.Add(panelId)) return;
+            Hotline.Api.Hud.RegisterText(panelId, () => Snitch.UI.ProfilerHud.BuildPanelMetrics(panelId));
         }
     }
 }

@@ -5,11 +5,11 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de](https://support.doodesch.de).
 
 Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API - any other
-mod's systems. It ships with a movable, resizable multi-window in-game overlay (each mod gets its own panel), a
-combined log timeline, and a live **web dashboard** so you can see frame times, section costs, and entity-state
+mod's systems. Its in-game panel lives in the **Hotline** overlay (each mod gets its own panel), alongside a
+combined log timeline and a live **web dashboard** so you can see frame times, section costs, and entity-state
 distributions in real time, and make your mod (or vanilla gameplay) faster.
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -34,15 +34,15 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 |---|---|
 | MelonLoader | 0.7.x (IL2CPP) |
 | S1API | `ifBars-S1API_Forked` |
+| Hotline | The in-game overlay framework Snitch's panel renders in (auto-installed as a dependency). |
 
 ## Use it
 
-Press **F6** for the overlay (or `snitch hud on`), then `snitch start` (or the Start button in the Overview
-window). Drag windows by the title bar, resize from the bottom-right grip; open each mod's panel from the
-Overview's `windows` list. Or open the web dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** -
-it auto-connects and shows everything live. Console verbs: `start, stop, status, frame, top, sections, states,
-counters, hud, panels, panel <id>, act, toggle, log, vanilla on|off, ablate <lever>, levers, report`. Reports
-go to `Mods/Snitch/runs/`.
+Install **Hotline** (pulled in as a dependency) and press **F6** for its overlay; Snitch's panel is inside,
+with Start/Stop/Reset and live stats. Then `snitch start` (or the Start button on the panel). Or open the web
+dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live.
+Console verbs: `start, stop, status, frame, top, sections, states, counters, panels, act, toggle, log,
+vanilla on|off, ablate <lever>, levers, report`. Reports go to `Mods/Snitch/runs/`.
 
 ## For modders
 

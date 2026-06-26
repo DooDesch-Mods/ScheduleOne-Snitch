@@ -5,12 +5,12 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de](https://support.doodesch.de).
 
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
-> [S1API](https://github.com/ifBars/S1API) - any other mod's systems. It ships with a movable, resizable
-> multi-window in-game overlay (each mod gets its own panel), a combined log timeline, and a live
-> **[web dashboard](https://snitch.doodesch.de)** so you can see frame times, section costs, and entity-state
-> distributions in real time.
+> [S1API](https://github.com/ifBars/S1API) - any other mod's systems. Its in-game panel lives in the
+> **[Hotline](https://github.com/DooDesch-Mods/ScheduleOne-Hotline)** overlay (each mod gets its own panel),
+> alongside a combined log timeline and a live **[web dashboard](https://snitch.doodesch.de)** so you can see
+> frame times, section costs, and entity-state distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -23,7 +23,7 @@
 - **Frame time** distribution + fps + GC pressure - the load-bearing, build-independent truth.
 - **Section costs** - time named code sections (yours via the API, or vanilla hot paths like `NPCMovement.Update`).
 - **State distributions** - NPCs by movement/visibility, trash by physics state, quests by state, and your own.
-- **Per-mod panels** - any mod that reports data gets its own toggleable, movable, resizable panel (counters, state, text, action buttons, toggles) in the overlay and the dashboard.
+- **Per-mod panels** - any mod that reports data gets its own panel (counters, state, text, action buttons, toggles) in the [Hotline](https://github.com/DooDesch-Mods/ScheduleOne-Hotline) overlay and the web dashboard.
 - **Log timeline** - a combined, chronological view of every mod's log output, with per-mod filtering.
 - **Ablation A/B** - toggle a subsystem off and measure the real frame-time delta (the causal "total cost").
 - **[Live web dashboard](https://snitch.doodesch.de)** - opens straight to your local game over WebSocket; your telemetry never leaves your PC.
@@ -37,12 +37,14 @@
 | Schedule I | IL2CPP build |
 | MelonLoader | 0.7.x |
 | S1API | `ifBars-S1API_Forked` |
+| [Hotline](https://github.com/DooDesch-Mods/ScheduleOne-Hotline) | The in-game overlay framework Snitch's panel renders in (auto-installed as a dependency). |
 
 ## Installation
 
-**Mod manager (Thunderstore / r2modman):** install Snitch; the dependencies pull in automatically.
+**Mod manager (Thunderstore / r2modman):** install Snitch; the dependencies (MelonLoader, S1API, Hotline)
+pull in automatically.
 
-**Manual:** install MelonLoader 0.7.x and S1API, then drop `Snitch.dll` into the game's `Mods/` folder.
+**Manual:** install MelonLoader 0.7.x, S1API and Hotline, then drop `Snitch.dll` into the game's `Mods/` folder.
 
 ## Configuration
 
@@ -54,9 +56,6 @@ profiler is idle until you run `snitch start`.
 | `Enabled` | `true` | Master switch. OFF = Snitch does nothing. |
 | `EnableInMultiplayer` | `true` | Profiling runs locally on every peer; state-mutating levers stay host-only. |
 | `AutoStart` | `false` | Begin sampling automatically on world load. |
-| `ShowHud` | `false` | Show the on-screen overlay (toggle with `snitch hud` or F6). |
-| `HudFontSize` | `12` | Overlay text size (px). It auto-resizes to fit, so this also sets how big the HUD is. |
-| `HudX` / `HudY` | `8` / `8` | Overlay position (pixels from the top-left). Kept on-screen automatically. |
 | `PollHz` | `4` | How often state providers + counters are sampled (frame-time is every frame). |
 | `ServerEnabled` | `true` | Run the loopback data server for the web dashboard. |
 | `ServerPort` | `6140` | The loopback port (127.0.0.1 only). |
@@ -65,11 +64,13 @@ profiler is idle until you run `snitch start`.
 
 ## Usage
 
-Open the in-game console:
+The in-game overlay is provided by **[Hotline](https://github.com/DooDesch-Mods/ScheduleOne-Hotline)** - press
+**F6** to open it; Snitch's panel (Start/Stop/Reset plus live stats) is inside, alongside every other mod's.
 
-- `snitch start` / `snitch stop` - arm / disarm sampling (or the Start/Stop buttons in the overlay's Overview window).
-- `snitch hud [on|off|...]` - the on-screen overlay. Press F6 to summon it; drag windows by the title bar, resize from the bottom-right grip.
-- `snitch panels` / `snitch panel <id> [on|off|move|size|reset]` - list and control the per-mod panels + windows.
+Snitch's own console:
+
+- `snitch start` / `snitch stop` - arm / disarm sampling (or the Start/Stop buttons on Snitch's panel in the Hotline overlay).
+- `snitch panels` - list the per-mod panels (toggle their windows from the Hotline overlay).
 - `snitch act <id>` / `snitch toggle <id>` / `snitch log [<channel>|all]` - run a panel action, flip a toggle, or read the logs.
 - `snitch top` / `snitch sections` / `snitch states` / `snitch counters` - log the current numbers.
 - `snitch vanilla on` - attribute CPU cost to vanilla hot paths (e.g. `NPCMovement.Update/FixedUpdate`).
@@ -86,7 +87,7 @@ Your mod's per-frame methods (`OnUpdate` etc.) are **auto-timed with zero code**
 `<YourMod>.OnUpdate` once Snitch is sampling. To go further, drop in `Snitch.cs` (or reference
 `Snitch.Api.dll`) - a zero-overhead no-op when Snitch isn't installed - and either name a class `SnitchProbe`
 with a static `Register()` (auto-discovered, no wiring). There you can build your own **panel** - counters,
-state, free text, action buttons, toggles and a log channel, shown in the overlay and the dashboard:
+state, free text, action buttons, toggles and a log channel, shown in the Hotline overlay and the web dashboard:
 
 ```csharp
 using Snitch.Api;   // Profiler, Panel, StateSnapshot

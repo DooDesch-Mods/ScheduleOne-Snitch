@@ -5,9 +5,9 @@ using Snitch.Engine;
 using Snitch.Logging;
 using Snitch.Server;
 
-[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.2.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
+[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.3.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
-[assembly: MelonOptionalDependencies("ModManager&PhoneApp")]
+[assembly: MelonOptionalDependencies("ModManager&PhoneApp", "Hotline")]
 
 namespace Snitch
 {
@@ -38,6 +38,14 @@ namespace Snitch
             // Publish the modder API bridge as early as possible so other mods' Snitch.Api calls bind.
             Snitch.Bridge.BridgeHost.Install();
 
+            // Snitch's own in-game surface is now a Hotline panel (the overlay lives in the Hotline framework): the
+            // profiler overview as a text readout plus sampling controls. Load-order-proof; a no-op if Hotline is absent.
+            Hotline.Api.Hud.RegisterPanel("Snitch", "Snitch (Profiler)")
+                .Text(Snitch.UI.ProfilerHud.BuildOverview)
+                .Action("Start sampling", SnitchCore.Start)
+                .Action("Stop sampling", SnitchCore.Stop)
+                .Action("Reset", () => { SnitchCore.Stop(); SnitchCore.Start(); });
+
             // The console bridge (Console.SubmitCommand prefixes) is the product's control surface. PatchAll
             // only patches the console classes; vanilla cost probes are patched on demand so a probe failure
             // can never break the console.
@@ -48,7 +56,7 @@ namespace Snitch
             if (Preferences.Enabled && Preferences.ServerEnabled)
                 SnitchServer.Start(Preferences.ServerPort, Preferences.ServerToken, Preferences.AllowedOrigins);
 
-            Log.Msg("Snitch v1.2.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
+            Log.Msg("Snitch v1.3.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -73,36 +81,8 @@ namespace Snitch
         public override void OnUpdate()
         {
             SnitchServer.Pump();   // drain dashboard control actions onto the main thread (cheap when idle)
-            if (!_inWorld)
-            {
-                return;
-            }
-            try
-            {
-                // F6 is the always-available entry point. It summons the overlay AND guarantees the Overview window
-                // (which hosts the per-panel toggle buttons) is visible - so the overlay can never get stuck closed
-                // after the user shuts the Overview's own [x]. Press again (with the Overview up) to dismiss everything.
-                if (Input.GetKeyDown(KeyCode.F6))
-                {
-                    if (!Preferences.ShowHud || !UI.WindowLayout.IsVisible("overview"))
-                    {
-                        Preferences.SetShowHud(true);
-                        UI.WindowLayout.SetVisible("overview", true);   // persists the layout too
-                    }
-                    else Preferences.SetShowHud(false);
-                }
-                if (Preferences.ShowHud) UI.WindowManager.HandleInput();
-            }
-            catch { /* never let overlay input break the update loop */ }
+            if (!_inWorld) return;
             if (Preferences.Enabled) SnitchCore.Tick();
-        }
-
-        public override void OnGUI()
-        {
-            // Draw whenever the overlay is on (not only while sampling) so the log timeline + panel controls are
-            // usable before 'snitch start'; the data readouts simply stay empty until sampling is armed.
-            if (!_inWorld || !Preferences.ShowHud) return;
-            UI.WindowManager.Draw();
         }
 
         public override void OnApplicationQuit()

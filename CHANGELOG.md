@@ -2,6 +2,24 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.3.0] - 2026-06-26
+
+The in-game overlay moves to the new Hotline framework, so every mod shares one overlay and one hotkey. The
+web dashboard and the profiling itself are unchanged.
+
+### Changed
+- The in-game overlay is now provided by Hotline (a dependency). Snitch contributes its profiler panel (frame
+  stats, sections, states, Start/Stop/Reset) to the unified Hotline overlay, opened with Hotline's master key
+  (default F6).
+
+### Removed
+- Snitch's own in-game windowing and its overlay settings (`ShowHud`, `HudFontSize`, `HudX`, `HudY`,
+  `WindowLayouts`) and the `snitch hud` / `snitch panel <id>` console verbs - the overlay lives in Hotline now.
+
+### Note
+- Without Hotline, Snitch still profiles and serves the web dashboard, but has no in-game overlay. Hotline is
+  pulled in automatically as a dependency.
+
 ## [1.2.0] - 2026-06-25
 
 The on-screen overlay becomes a small windowing layer, every mod gets its own panel, and there is a combined

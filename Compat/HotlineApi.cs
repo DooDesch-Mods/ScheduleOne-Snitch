@@ -40,6 +40,7 @@ namespace Hotline.Api
         private static Action<string, string, string, Action> _registerAction;
         private static Action<string, string, string, Func<bool>, Action<bool>> _registerToggle;
         private static Action<string, Func<string>> _registerText;
+        private static Action<string, Func<int[]>> _registerImage;
         private static Action<string> _bindPanelLog;
         private static Action<string, int, string> _log;
         private static Action<string, string, int, Action> _registerHotkey;
@@ -91,6 +92,18 @@ namespace Hotline.Api
             EnsureBound();
             if (_registerText != null) _registerText(panelId, provider);
             else _pending.Add(() => _registerText?.Invoke(panelId, provider));
+        }
+
+        /// <summary>An image in a mod's panel (e.g. a QR code). The provider returns <c>{ width, height, argb0, argb1, ... }</c>
+        /// - ARGB32 pixels, row-major top-down - or null/empty for "nothing to show". Polled by the host on the main
+        /// thread and drawn Point-filtered. Kept as a raw int[] so this shim needs no Unity reference. Load-order-proof;
+        /// a no-op on an older Hotline host that predates image support.</summary>
+        public static void RegisterImage(string panelId, Func<int[]> provider)
+        {
+            if (provider == null) return;
+            EnsureBound();
+            if (_registerImage != null) _registerImage(panelId, provider);
+            else _pending.Add(() => _registerImage?.Invoke(panelId, provider));
         }
 
         /// <summary>Mark that a panel should display its own log channel (the lines you send via <see cref="Log"/> /
@@ -189,6 +202,7 @@ namespace Hotline.Api
                 _registerAction = Get<Action<string, string, string, Action>>(t, "RegisterAction");
                 _registerToggle = Get<Action<string, string, string, Func<bool>, Action<bool>>>(t, "RegisterToggle");
                 _registerText = Get<Action<string, Func<string>>>(t, "RegisterText");
+                _registerImage = Get<Action<string, Func<int[]>>>(t, "RegisterImage");
                 _bindPanelLog = Get<Action<string>>(t, "BindPanelLog");
                 _log = Get<Action<string, int, string>>(t, "Log");
                 _registerHotkey = Get<Action<string, string, int, Action>>(t, "RegisterHotkey");
@@ -249,6 +263,9 @@ namespace Hotline.Api
 
         /// <summary>A free-text, multi-line readout in this panel.</summary>
         public Panel Text(Func<string> provider) { Hud.RegisterText(_id, provider); return this; }
+
+        /// <summary>An image in this panel (e.g. a QR code). Provider returns { width, height, argb... } or null.</summary>
+        public Panel Image(Func<int[]> provider) { Hud.RegisterImage(_id, provider); return this; }
 
         /// <summary>A clickable button (replaces a debug hotkey action).</summary>
         public Panel Action(string label, Action run) { Hud.RegisterAction(_id, label, run); return this; }

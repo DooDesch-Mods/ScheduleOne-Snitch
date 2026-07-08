@@ -194,19 +194,21 @@ namespace Snitch
             string sub = p.Length > 2 ? p[2].ToLowerInvariant() : "status";
             if (sub == "on")
             {
-                if (LanServer.Running) { Log("LAN remote already on - " + LanUrl()); return; }
+                if (LanServer.Running) { Log("phone remote already on - " + LanUrl()); return; }
                 Preferences.LanAccess = true;
                 try { MelonPreferences.Save(); } catch { }
                 LanServer.Start(Preferences.LanPort);
-                Log(LanServer.Running ? "LAN remote ON - " + LanUrl() + " (scan the QR in the dashboard from your phone)"
-                                      : "LAN remote failed to start - see the log (port in use? change LanPort).");
+                if (!RelayHost.Running) RelayHost.Start(System.Guid.NewGuid().ToString("N").Substring(0, 12));
+                Log(LanServer.Running ? "phone remote ON - " + LanUrl() + " (+ relay for other networks; scan the QR from your phone)"
+                                      : "phone remote failed to start - see the log (port in use? change LanPort).");
             }
             else if (sub == "off")
             {
                 Preferences.LanAccess = false;
                 try { MelonPreferences.Save(); } catch { }
+                RelayHost.Stop();
                 LanServer.Stop();
-                Log("LAN remote OFF.");
+                Log("phone remote OFF.");
             }
             else
             {

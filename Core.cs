@@ -44,7 +44,9 @@ namespace Snitch
                 .Text(Snitch.UI.ProfilerHud.BuildOverview)
                 .Action("Start sampling", SnitchCore.Start)
                 .Action("Stop sampling", SnitchCore.Stop)
-                .Action("Reset", () => { SnitchCore.Stop(); SnitchCore.Start(); });
+                .Action("Reset", () => { SnitchCore.Stop(); SnitchCore.Start(); })
+                .Toggle("Phone remote (scan the QR)", () => LanServer.Running, SetLanRemote)
+                .Image(Snitch.UI.QrImage.Build);
 
             // The console bridge (Console.SubmitCommand prefixes) is the product's control surface. PatchAll
             // only patches the console classes; vanilla cost probes are patched on demand so a probe failure
@@ -56,10 +58,13 @@ namespace Snitch
             if (Preferences.Enabled && Preferences.ServerEnabled)
                 SnitchServer.Start(Preferences.ServerPort, Preferences.ServerToken, Preferences.AllowedOrigins);
 
-            // Optional LAN endpoint so a phone on the same Wi-Fi can use the dashboard as a remote. OFF by default;
-            // token-gated. Toggle live with 'snitch lan on|off'.
+            // Optional phone remote (OFF by default, token-gated): a LAN endpoint for same-Wi-Fi phones plus a relay
+            // session so a phone on any network can reach the game. Toggle live with 'snitch lan on|off'.
             if (Preferences.Enabled && Preferences.ServerEnabled && Preferences.LanAccess)
+            {
                 LanServer.Start(Preferences.LanPort);
+                RelayHost.Start(System.Guid.NewGuid().ToString("N").Substring(0, 12));
+            }
 
             Log.Msg("Snitch v1.3.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
@@ -90,9 +95,25 @@ namespace Snitch
             if (Preferences.Enabled) SnitchCore.Tick();
         }
 
+        /// <summary>Turn the phone remote on/off from the in-game panel toggle. On = start the LAN endpoint AND a relay
+        /// session (so the QR works both on the same Wi-Fi and across networks) and persist the preference; off = stop
+        /// both. The relay E2E and the LAN shortcut share the LAN server's token, so one QR drives both.</summary>
+        private static void SetLanRemote(bool on)
+        {
+            Preferences.LanAccess = on;
+            try { MelonPreferences.Save(); } catch { }
+            if (on)
+            {
+                if (!LanServer.Running) LanServer.Start(Preferences.LanPort);
+                if (!RelayHost.Running) RelayHost.Start(System.Guid.NewGuid().ToString("N").Substring(0, 12));
+            }
+            else { RelayHost.Stop(); LanServer.Stop(); }
+        }
+
         public override void OnApplicationQuit()
         {
             SnitchServer.Stop();
+            RelayHost.Stop();
             LanServer.Stop();
             LogHub.Uninstall();
         }
@@ -100,6 +121,7 @@ namespace Snitch
         public override void OnDeinitializeMelon()
         {
             SnitchServer.Stop();
+            RelayHost.Stop();
             LanServer.Stop();
             LogHub.Uninstall();
         }

@@ -2,6 +2,27 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.4.0] - 2026-07-08
+
+Use your phone as a remote for the profiler - scan a QR and start/stop sampling or trigger any mod's actions
+without switching back to the browser window.
+
+### Added
+- **Phone remote.** A "Connect a phone" QR - both in the web dashboard and in the in-game Snitch panel. Scan it
+  and you get a compact remote: the live FPS, Start/Stop/Reset, and every mod's panel actions and toggles.
+- Works on the **same Wi-Fi** (the phone connects directly to the game) and **across networks** (the game
+  relays through a small pairing service, so it works even over mobile data). On the same network the phone
+  switches to the direct local connection on its own.
+- **End-to-end encrypted** with a one-time key carried in the QR, so the relay only ever forwards ciphertext -
+  your telemetry stays private even over the internet.
+- Turn it on from the Snitch panel toggle or with `snitch lan on` (off by default).
+- The dashboard now reads a capability list from the connected instance, so it only offers features the running
+  build actually supports.
+
+### Requirements
+- The in-game QR uses [Hotline](https://github.com/DooDesch-Mods/ScheduleOne-Hotline) 1.1.0 or newer (its panel
+  image support). Everything else works without it.
+
 ## [1.3.0] - 2026-06-26
 
 The in-game overlay moves to the new Hotline framework, so every mod shares one overlay and one hotkey. The

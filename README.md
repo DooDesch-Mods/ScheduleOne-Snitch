@@ -10,7 +10,7 @@
 > alongside a combined log timeline and a live **[web dashboard](https://snitch.doodesch.de)** so you can see
 > frame times, section costs, and entity-state distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue)
+![Version](https://img.shields.io/badge/version-1.4.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -27,6 +27,7 @@
 - **Log timeline** - a combined, chronological view of every mod's log output, with per-mod filtering.
 - **Ablation A/B** - toggle a subsystem off and measure the real frame-time delta (the causal "total cost").
 - **[Live web dashboard](https://snitch.doodesch.de)** - opens straight to your local game over WebSocket; your telemetry never leaves your PC.
+- **Phone remote** - scan a QR (in the dashboard or the in-game Snitch panel) to drive the profiler from your phone: live FPS, Start/Stop/Reset, and every mod's actions and toggles. Works on the same Wi-Fi or across networks, end-to-end encrypted.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead (`Snitch.Self`).
 - **Modder API** - a zero-overhead no-op when Snitch isn't installed, so you can ship it with no hard dependency.
 

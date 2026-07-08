@@ -15,6 +15,13 @@ namespace Snitch.Server
         /// <summary>Absolute path to the bundled dashboard root (Mods/Snitch/wwwroot). Computed once.</summary>
         internal static string Wwwroot => _wwwroot ??= Path.Combine(Directory.GetCurrentDirectory(), "Mods", "Snitch", "wwwroot");
 
+        /// <summary>True when a real bundled dashboard is present (index.html exists). The DLL-only release ships no
+        /// dashboard, so the LAN-direct shortcut is only offered when this is true; otherwise a phone uses the relay.</summary>
+        internal static bool HasBundledDashboard()
+        {
+            try { return File.Exists(Path.Combine(Wwwroot, "index.html")); } catch { return false; }
+        }
+
         /// <summary>Resolve a request path to a bundled file. Maps "/" to "/index.html", guards against path
         /// traversal, and returns false (with a caller-decided fallback) when the file is missing.</summary>
         internal static bool TryResolve(string path, out byte[] bytes, out string contentType)

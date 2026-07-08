@@ -33,7 +33,7 @@ namespace Snitch.Server
             FrameStats f = SnitchCore.LatestFrame;
             var sb = new StringBuilder(8192);
             sb.Append("{\"type\":\"snapshot\",\"v\":").Append(Version).Append(",\"t\":").Append(frame).Append(',');
-            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"scene\":\"").Append(Esc(scene))
+            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.4.0\",\"scene\":\"").Append(Esc(scene))
               .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false")
               .Append(",\"caps\":").Append(CapsArray).Append("},");
 
@@ -164,7 +164,7 @@ namespace Snitch.Server
 
         internal static string BuildHealth(int frame, string scene, string lanJson = null)
         {
-            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"caps\":" + CapsArray
+            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.4.0\",\"caps\":" + CapsArray
                  + ",\"active\":" + (SnitchCore.Active ? "true" : "false")
                  + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame;
             if (!string.IsNullOrEmpty(lanJson)) body += "," + lanJson;

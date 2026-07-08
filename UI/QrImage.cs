@@ -22,11 +22,15 @@ namespace Snitch.UI
             if (!LanServer.Running) { _cache = null; _cacheUrl = null; return null; }
 
             // With the game hosting a relay session, point the QR at the hosted site carrying the relay pairing code
-            // (works from ANY network) plus the LAN shortcut (a same-Wi-Fi phone can connect directly). Without the
-            // relay, fall back to the LAN-only URL (same Wi-Fi required).
-            string url = RelayHost.Running && !string.IsNullOrEmpty(RelayHost.Code)
-                ? "https://snitch.doodesch.de/#join=" + RelayHost.Code + "&t=" + LanServer.Token + "&lan=" + LanServer.Ip + ":" + LanServer.Port
-                : "http://" + LanServer.Ip + ":" + LanServer.Port + "/#remote&t=" + LanServer.Token;
+            // (works from ANY network). The LAN-direct shortcut is only added when a bundled dashboard is actually
+            // present to serve it (the DLL-only release ships none, so those installs use the relay).
+            string lan = WebAssets.HasBundledDashboard() ? "&lan=" + LanServer.Ip + ":" + LanServer.Port : "";
+            string url;
+            if (RelayHost.Running && !string.IsNullOrEmpty(RelayHost.Code))
+                url = "https://snitch.doodesch.de/#join=" + RelayHost.Code + "&t=" + LanServer.Token + lan;
+            else if (lan.Length > 0)
+                url = "http://" + LanServer.Ip + ":" + LanServer.Port + "/#remote&t=" + LanServer.Token;
+            else { _cache = null; _cacheUrl = null; return null; }   // no relay and no bundled page -> nothing to show
             if (url == _cacheUrl && _cache != null) return _cache;
 
             bool[,] m = QrCode.Encode(url);

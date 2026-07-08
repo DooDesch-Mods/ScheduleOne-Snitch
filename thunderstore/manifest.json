@@ -1,12 +1,12 @@
 {
   "name": "Snitch",
-  "version_number": "1.3.0",
+  "version_number": "1.4.0",
   "website_url": "https://github.com/DooDesch-Mods/ScheduleOne-Snitch",
-  "description": "A performance profiler - measure the cost + state of NPCs, trash, quests and your own mods, with a per-mod panel in the Hotline overlay and a live web dashboard.",
+  "description": "A performance profiler - measure the cost + state of NPCs, trash, quests and your own mods, with a per-mod panel in the Hotline overlay, a live web dashboard, and a phone remote (scan a QR to drive it).",
   "dependencies": [
     "LavaGang-MelonLoader-0.7.3",
     "ifBars-S1API_Forked-3.0.5",
-    "DooDesch-Hotline-1.0.0"
+    "DooDesch-Hotline-1.1.0"
   ],
   "contributors": [
     "DooDesch"

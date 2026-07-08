@@ -20,9 +20,9 @@
     <RootNamespace>Snitch</RootNamespace>
     <AssemblyName>Snitch</AssemblyName>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <Version>1.3.0</Version>
-    <AssemblyVersion>1.3.0.0</AssemblyVersion>
-    <FileVersion>1.3.0.0</FileVersion>
+    <Version>1.4.0</Version>
+    <AssemblyVersion>1.4.0.0</AssemblyVersion>
+    <FileVersion>1.4.0.0</FileVersion>
     <!-- Suppress MSB3277/MSB3245 noise from il2cpp interop transitive refs -->
     <NoWarn>$(NoWarn);MSB3277;MSB3245</NoWarn>
 

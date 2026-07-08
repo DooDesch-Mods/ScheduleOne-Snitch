@@ -86,7 +86,8 @@ namespace Snitch.Server
                 return "\"lan\":{\"enabled\":false}";
             var sb = new StringBuilder(160);
             sb.Append("\"lan\":{\"enabled\":true,\"ip\":\"").Append(_ip).Append("\",\"port\":").Append(_port)
-              .Append(",\"url\":\"http://").Append(_ip).Append(':').Append(_port).Append("/\"");
+              .Append(",\"url\":\"http://").Append(_ip).Append(':').Append(_port).Append("/\"")
+              .Append(",\"bundled\":").Append(WebAssets.HasBundledDashboard() ? "true" : "false");
             if (includeToken) sb.Append(",\"token\":\"").Append(_token).Append('"');
             sb.Append('}');
             return sb.ToString();

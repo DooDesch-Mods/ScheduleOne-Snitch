@@ -19,6 +19,13 @@ namespace Snitch.Server
     internal static class WireProtocol
     {
         internal const int Version = 1;
+
+        /// <summary>Capability tokens this build advertises (in /health and the snapshot meta) so the dashboard can
+        /// feature-gate: it shows an optional surface only when the connected instance lists that token. Older
+        /// Snitch builds omit tokens they don't have (e.g. "phone-remote"), so a newer dashboard hides those
+        /// features for them; newer builds can add tokens without breaking older dashboards (unknown = ignored).</summary>
+        internal const string CapsArray = "[\"panels\",\"logs\",\"phone-remote\"]";
+
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         internal static string BuildSnapshot(int frame, string scene)
@@ -27,7 +34,8 @@ namespace Snitch.Server
             var sb = new StringBuilder(8192);
             sb.Append("{\"type\":\"snapshot\",\"v\":").Append(Version).Append(",\"t\":").Append(frame).Append(',');
             sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"scene\":\"").Append(Esc(scene))
-              .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false").Append("},");
+              .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false")
+              .Append(",\"caps\":").Append(CapsArray).Append("},");
 
             sb.Append("\"frame\":{");
             Num(sb, "meanMs", f.MeanMs); Num(sb, "medianMs", f.MedianMs); Num(sb, "p95Ms", f.P95Ms);
@@ -156,7 +164,8 @@ namespace Snitch.Server
 
         internal static string BuildHealth(int frame, string scene, string lanJson = null)
         {
-            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"active\":" + (SnitchCore.Active ? "true" : "false")
+            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"caps\":" + CapsArray
+                 + ",\"active\":" + (SnitchCore.Active ? "true" : "false")
                  + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame;
             if (!string.IsNullOrEmpty(lanJson)) body += "," + lanJson;
             return body + "}";

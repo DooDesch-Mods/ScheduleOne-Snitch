@@ -7,7 +7,7 @@ namespace Snitch.UI
     /// A tiny, dependency-free QR Code encoder (byte mode, error-correction level L, versions 1-10, the smallest
     /// that fits). Pure C# with no Unity types so it is trivially testable and IL2CPP-safe. Returns the module
     /// matrix (true = dark); the caller turns it into pixels. Enough capacity for a connect URL (up to about
-    /// 271 bytes at level L).
+    /// 271 bytes at level L). Vendored from the standalone library DooDesch/QrLite (class renamed); keep in sync.
     /// </summary>
     internal static class QrCode
     {

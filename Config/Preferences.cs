@@ -28,6 +28,10 @@ namespace Snitch.Config
         private static MelonPreferences_Entry<string> _serverToken;
         private static MelonPreferences_Entry<string> _allowedOrigins;
 
+        // LAN remote (phone)
+        private static MelonPreferences_Entry<bool> _lanAccess;
+        private static MelonPreferences_Entry<int> _lanPort;
+
         internal static void Initialize()
         {
             if (_category != null)
@@ -70,6 +74,14 @@ namespace Snitch.Config
             _allowedOrigins = Create("AllowedOrigins", "https://snitch.doodesch.de", "Allowed dashboard origins",
                 "Comma-separated list of web origins permitted to connect from the browser (in addition to localhost, " +
                 "which is always allowed). Defaults to the hosted dashboard. Used for CORS + WebSocket Origin checks.");
+            _lanAccess = Create("LanAccess", false, "Phone remote (LAN access)",
+                "OFF (default): the data server stays loopback-only (127.0.0.1), nothing is exposed to your network. " +
+                "ON: also run a small LAN endpoint so a phone on the same Wi-Fi can open the dashboard and use it as a " +
+                "remote (scan the QR shown in the dashboard). It is token-gated; you may need to allow the port through " +
+                "your firewall on the Private network. Toggle live in-game with 'snitch lan on|off'.");
+            _lanPort = Create("LanPort", 6141, "Phone remote port",
+                "TCP port for the LAN phone endpoint (separate from the loopback port). Change only if it clashes. Clamped 1024-65535.",
+                new MelonLoader.Preferences.ValueRange<int>(1024, 65535));
         }
 
         private static MelonPreferences_Entry<T> Create<T>(string id, T def, string name, string desc = null,
@@ -92,5 +104,8 @@ namespace Snitch.Config
         internal static int ServerPort => Mathf.Clamp(_serverPort?.Value ?? 6140, 1024, 65535);
         internal static string ServerToken => _serverToken?.Value ?? "";
         internal static string AllowedOrigins => _allowedOrigins?.Value ?? "https://snitch.doodesch.de";
+
+        internal static bool LanAccess { get => _lanAccess?.Value ?? false; set { if (_lanAccess != null) _lanAccess.Value = value; } }
+        internal static int LanPort => Mathf.Clamp(_lanPort?.Value ?? 6141, 1024, 65535);
     }
 }

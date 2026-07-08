@@ -34,7 +34,6 @@ namespace Snitch.Server
         private static int _port;
         private static string _token = "";
         private static string[] _origins = Array.Empty<string>();
-        private static string _wwwroot;
 
         private static readonly List<Session> _sockets = new List<Session>();
         private static readonly object _lock = new object();
@@ -58,7 +57,6 @@ namespace Snitch.Server
             _port = port;
             _token = token ?? "";
             _origins = ParseOrigins(allowedOrigins);
-            _wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "Mods", "Snitch", "wwwroot");
             try
             {
                 _listener = new HttpListener();
@@ -163,7 +161,7 @@ namespace Snitch.Server
             switch (path)
             {
                 case "/health":
-                    WriteJson(res, WireProtocol.BuildHealth(SnitchCore.LastFrame, SnitchCore.LastScene));
+                    WriteJson(res, WireProtocol.BuildHealth(SnitchCore.LastFrame, SnitchCore.LastScene, LanServer.LanInfoJson(true)));
                     break;
                 case "/snapshot":
                     if (!TokenOk(req)) { res.StatusCode = 401; res.Close(); break; }
@@ -190,34 +188,36 @@ namespace Snitch.Server
             string body = "";
             try { using var sr = new StreamReader(req.InputStream, Encoding.UTF8); body = sr.ReadToEnd(); } catch { }
 
-            string cmd = req.QueryString["cmd"];
-            if (string.IsNullOrEmpty(cmd)) cmd = ExtractField(body, "cmd");
-            cmd = (cmd ?? "").Trim().ToLowerInvariant();
+            string cmd = req.QueryString["cmd"] ?? ExtractField(body, "cmd");
+            string id = req.QueryString["id"] ?? ExtractField(body, "id");
+            string value = req.QueryString["value"] ?? ExtractField(body, "value");
+            WriteJson(res, ApplyControl(cmd, id, value));
+        }
 
+        /// <summary>Apply one control verb from a dashboard (loopback or LAN). Shared by both servers - all state
+        /// changes are marshalled onto the main thread via <see cref="_mainQueue"/> and drained in <see cref="Pump"/>.
+        /// Returns the JSON result string. Pure parsing lives in the callers; this owns the verb switch.</summary>
+        internal static string ApplyControl(string cmd, string id, string value)
+        {
+            cmd = (cmd ?? "").Trim().ToLowerInvariant();
             switch (cmd)
             {
                 case "start": _mainQueue.Enqueue(SnitchCore.Start); break;
                 case "stop": _mainQueue.Enqueue(SnitchCore.Stop); break;
                 case "reset": _mainQueue.Enqueue(() => { SnitchCore.Stop(); SnitchCore.Start(); }); break;
+                case "report": _mainQueue.Enqueue(() => { try { Reporting.ReportWriter.Write("all"); } catch (Exception e) { Core.Log?.Warning("[snitch] report failed: " + e.Message); } }); break;
                 case "action":
-                {
-                    string id = req.QueryString["id"] ?? ExtractField(body, "id");
-                    if (string.IsNullOrEmpty(id)) { WriteJson(res, "{\"ok\":false,\"error\":\"missing id\"}"); return; }
+                    if (string.IsNullOrEmpty(id)) return "{\"ok\":false,\"error\":\"missing id\"}";
                     _mainQueue.Enqueue(() => Snitch.Panels.PanelRegistry.Invoke(id));
                     break;
-                }
                 case "toggle":
-                {
-                    string id = req.QueryString["id"] ?? ExtractField(body, "id");
-                    if (string.IsNullOrEmpty(id)) { WriteJson(res, "{\"ok\":false,\"error\":\"missing id\"}"); return; }
-                    string vq = req.QueryString["value"] ?? ExtractField(body, "value");
-                    bool val = vq == "true" || vq == "1" || vq == "on";
+                    if (string.IsNullOrEmpty(id)) return "{\"ok\":false,\"error\":\"missing id\"}";
+                    bool val = value == "true" || value == "1" || value == "on";
                     _mainQueue.Enqueue(() => Snitch.Panels.PanelRegistry.SetToggle(id, val));
                     break;
-                }
-                default: WriteJson(res, "{\"ok\":false,\"error\":\"unknown cmd\"}"); return;
+                default: return "{\"ok\":false,\"error\":\"unknown cmd\"}";
             }
-            WriteJson(res, "{\"ok\":true,\"cmd\":\"" + cmd + "\"}");
+            return "{\"ok\":true,\"cmd\":\"" + cmd + "\"}";
         }
 
         private static async Task HandleWsAsync(HttpListenerContext ctx)
@@ -269,27 +269,22 @@ namespace Snitch.Server
 
         private static void ServeStatic(string path, HttpListenerResponse res)
         {
-            if (path == "/" || string.IsNullOrEmpty(path)) path = "/index.html";
-            string rel = path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-            string full = _wwwroot != null ? Path.GetFullPath(Path.Combine(_wwwroot, rel)) : null;
-
-            // path-traversal guard + existence
-            if (full == null || !full.StartsWith(_wwwroot, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+            if (WebAssets.TryResolve(path, out byte[] bytes, out string contentType))
             {
-                if (path == "/index.html") { WriteHtml(res, PlaceholderHtml()); return; }
-                res.StatusCode = 404; res.Close(); return;
+                try
+                {
+                    res.StatusCode = 200;
+                    res.ContentType = contentType;
+                    res.ContentLength64 = bytes.Length;
+                    res.OutputStream.Write(bytes, 0, bytes.Length);
+                    res.OutputStream.Close();
+                    res.Close();
+                }
+                catch { try { res.StatusCode = 500; res.Close(); } catch { } }
+                return;
             }
-            try
-            {
-                byte[] bytes = File.ReadAllBytes(full);
-                res.StatusCode = 200;
-                res.ContentType = ContentType(full);
-                res.ContentLength64 = bytes.Length;
-                res.OutputStream.Write(bytes, 0, bytes.Length);
-                res.OutputStream.Close();
-                res.Close();
-            }
-            catch { try { res.StatusCode = 500; res.Close(); } catch { } }
+            if (path == "/" || string.IsNullOrEmpty(path) || path == "/index.html") { WriteHtml(res, PlaceholderHtml()); return; }
+            res.StatusCode = 404; res.Close();
         }
 
         // ----- CORS / origin / token -----
@@ -352,22 +347,6 @@ namespace Snitch.Server
             }
             catch { }
             finally { try { res.Close(); } catch { } }
-        }
-
-        private static string ContentType(string path)
-        {
-            string e = Path.GetExtension(path).ToLowerInvariant();
-            switch (e)
-            {
-                case ".html": return "text/html; charset=utf-8";
-                case ".js": return "text/javascript";
-                case ".css": return "text/css";
-                case ".json": return "application/json";
-                case ".svg": return "image/svg+xml";
-                case ".png": return "image/png";
-                case ".woff2": return "font/woff2";
-                default: return "application/octet-stream";
-            }
         }
 
         /// <summary>Tiny field extractor for {"key":"value"} or {"key":value} without a JSON dependency. Returns the

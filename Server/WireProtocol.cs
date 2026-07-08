@@ -154,10 +154,12 @@ namespace Snitch.Server
             sb.Append("]}");
         }
 
-        internal static string BuildHealth(int frame, string scene)
+        internal static string BuildHealth(int frame, string scene, string lanJson = null)
         {
-            return "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"active\":" + (SnitchCore.Active ? "true" : "false")
-                 + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame + "}";
+            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.3.0\",\"active\":" + (SnitchCore.Active ? "true" : "false")
+                 + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame;
+            if (!string.IsNullOrEmpty(lanJson)) body += "," + lanJson;
+            return body + "}";
         }
 
         /// <summary>Static capability statement (the honesty layer).</summary>

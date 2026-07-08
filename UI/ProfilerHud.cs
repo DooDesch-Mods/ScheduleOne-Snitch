@@ -29,6 +29,10 @@ namespace Snitch.UI
             sb.Append(f.MeanMs.ToString("F2")).Append(" ms   p95 ").Append(f.P95Ms.ToString("F2"))
               .Append("   gc0/1k ").Append(f.Gc0Per1000.ToString("F1"));
 
+            if (Snitch.Server.LanServer.Running)
+                sb.Append("\n<color=#8bf>phone</color> http://").Append(Snitch.Server.LanServer.Ip)
+                  .Append(':').Append(Snitch.Server.LanServer.Port).Append("  token ").Append(Snitch.Server.LanServer.Token);
+
             var rows = SnitchCore.LatestSections;
             if (rows != null && rows.Count > 0)
             {

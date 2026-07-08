@@ -56,6 +56,11 @@ namespace Snitch
             if (Preferences.Enabled && Preferences.ServerEnabled)
                 SnitchServer.Start(Preferences.ServerPort, Preferences.ServerToken, Preferences.AllowedOrigins);
 
+            // Optional LAN endpoint so a phone on the same Wi-Fi can use the dashboard as a remote. OFF by default;
+            // token-gated. Toggle live with 'snitch lan on|off'.
+            if (Preferences.Enabled && Preferences.ServerEnabled && Preferences.LanAccess)
+                LanServer.Start(Preferences.LanPort);
+
             Log.Msg("Snitch v1.3.0 - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
@@ -88,12 +93,14 @@ namespace Snitch
         public override void OnApplicationQuit()
         {
             SnitchServer.Stop();
+            LanServer.Stop();
             LogHub.Uninstall();
         }
 
         public override void OnDeinitializeMelon()
         {
             SnitchServer.Stop();
+            LanServer.Stop();
             LogHub.Uninstall();
         }
     }

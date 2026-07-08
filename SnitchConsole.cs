@@ -9,6 +9,7 @@ using Snitch.Logging;
 using Snitch.Panels;
 using Snitch.Registries;
 using Snitch.Sections;
+using Snitch.Server;
 
 namespace Snitch
 {
@@ -67,6 +68,7 @@ namespace Snitch
                     case "toggle": ToggleCmd(p); break;
                     case "log": LogCmd(p); break;
                     case "vanilla": Vanilla(p); break;
+                    case "lan": Lan(p); break;
                     case "report": Report(p.Length > 2 ? p[2].ToLowerInvariant() : "all"); break;
                     case "ablate": Ablate(p); break;
                     case "levers": Log("ablation levers: " + string.Join(", ", Ablation.LeverRegistry.Names)); break;
@@ -85,7 +87,7 @@ namespace Snitch
         {
             Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | "
                 + "panels | act <actionId> | toggle <toggleId> [on|off] | log [<channel>|all] [n] | "
-                + "vanilla [on|off] | ablate <lever> | levers | report [md|csv|all]  "
+                + "vanilla [on|off] | lan [on|off] | ablate <lever> | levers | report [md|csv|all]  "
                 + "(in-game overlay: install Hotline, then press its master key or 'hotline help')");
         }
 
@@ -186,6 +188,35 @@ namespace Snitch
             else if (sub == "off") Snitch.Vanilla.VanillaProbes.Disable();
             else Log("vanilla probes: " + Snitch.Vanilla.VanillaProbes.Status() + " (use 'snitch vanilla on|off')");
         }
+
+        private static void Lan(string[] p)
+        {
+            string sub = p.Length > 2 ? p[2].ToLowerInvariant() : "status";
+            if (sub == "on")
+            {
+                if (LanServer.Running) { Log("LAN remote already on - " + LanUrl()); return; }
+                Preferences.LanAccess = true;
+                try { MelonPreferences.Save(); } catch { }
+                LanServer.Start(Preferences.LanPort);
+                Log(LanServer.Running ? "LAN remote ON - " + LanUrl() + " (scan the QR in the dashboard from your phone)"
+                                      : "LAN remote failed to start - see the log (port in use? change LanPort).");
+            }
+            else if (sub == "off")
+            {
+                Preferences.LanAccess = false;
+                try { MelonPreferences.Save(); } catch { }
+                LanServer.Stop();
+                Log("LAN remote OFF.");
+            }
+            else
+            {
+                Log(LanServer.Running
+                    ? "LAN remote ON - " + LanUrl()
+                    : "LAN remote OFF (use 'snitch lan on'). Lets a phone on your Wi-Fi open the dashboard as a remote.");
+            }
+        }
+
+        private static string LanUrl() => $"http://{LanServer.Ip}:{LanServer.Port}/ (token {LanServer.Token})";
 
         private static void Report(string fmt)
         {

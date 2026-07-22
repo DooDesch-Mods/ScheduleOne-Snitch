@@ -2,7 +2,7 @@
 
 **A performance profiler for Schedule I** - measure what's actually slow, then make it fast.
 
-> 🛟 **Need help or found a bug?** Get support at [support.doodesch.de](https://support.doodesch.de).
+> 🛟 **Need help or found a bug?** Get support at [support.doodesch.de/snitch](https://support.doodesch.de/snitch).
 
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
 > [S1API](https://github.com/ifBars/S1API) - any other mod's systems. Its in-game panel lives in the
@@ -16,7 +16,7 @@
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
-**[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de)**
+**[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de/snitch)**
 
 ## Features
 

@@ -7,7 +7,7 @@ using Snitch.Server;
 
 [assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.4.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
-[assembly: MelonOptionalDependencies("ModManager&PhoneApp", "Hotline")]
+[assembly: MelonOptionalDependencies("Hotline")]
 
 namespace Snitch
 {

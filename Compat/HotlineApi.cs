@@ -41,6 +41,7 @@ namespace Hotline.Api
         private static Action<string, string, string, Func<bool>, Action<bool>> _registerToggle;
         private static Action<string, Func<string>> _registerText;
         private static Action<string, Func<int[]>> _registerImage;
+        private static Action<string, string, string, double, double, double, string, Func<double>, Action<double>> _registerSlider;
         private static Action<string> _bindPanelLog;
         private static Action<string, int, string> _log;
         private static Action<string, string, int, Action> _registerHotkey;
@@ -83,6 +84,24 @@ namespace Hotline.Api
             EnsureBound();
             if (_registerToggle != null) _registerToggle(panelId, toggleId, label, get, set);
             else _pending.Add(() => _registerToggle?.Invoke(panelId, toggleId, label, get, set));
+        }
+
+        /// <summary>
+        /// A draggable value in a mod's panel - the in-game replacement for typing a number into a console to find it.
+        /// <paramref name="get"/> reports the current value, <paramref name="set"/> applies it; both run on the main
+        /// thread. The host clamps to [<paramref name="min"/>, <paramref name="max"/>] and snaps to
+        /// <paramref name="step"/> (0 = continuous), so a setter never sees a value outside its range.
+        /// Load-order-proof; a no-op on an older Hotline host that predates slider support.
+        /// </summary>
+        public static void RegisterSlider(string panelId, string label, double min, double max,
+                                          Func<double> get, Action<double> set, double step = 0d, string unit = null)
+        {
+            if (get == null || set == null || string.IsNullOrEmpty(label) || max <= min) return;
+            string sliderId = panelId + ":" + Slug(label);
+            string u = unit ?? "";
+            EnsureBound();
+            if (_registerSlider != null) _registerSlider(panelId, sliderId, label, min, max, step, u, get, set);
+            else _pending.Add(() => _registerSlider?.Invoke(panelId, sliderId, label, min, max, step, u, get, set));
         }
 
         /// <summary>A free-text, multi-line readout in a mod's panel. Polled by the host on the main thread. Load-order-proof.</summary>
@@ -203,6 +222,7 @@ namespace Hotline.Api
                 _registerToggle = Get<Action<string, string, string, Func<bool>, Action<bool>>>(t, "RegisterToggle");
                 _registerText = Get<Action<string, Func<string>>>(t, "RegisterText");
                 _registerImage = Get<Action<string, Func<int[]>>>(t, "RegisterImage");
+                _registerSlider = Get<Action<string, string, string, double, double, double, string, Func<double>, Action<double>>>(t, "RegisterSlider");
                 _bindPanelLog = Get<Action<string>>(t, "BindPanelLog");
                 _log = Get<Action<string, int, string>>(t, "Log");
                 _registerHotkey = Get<Action<string, string, int, Action>>(t, "RegisterHotkey");
@@ -272,6 +292,10 @@ namespace Hotline.Api
 
         /// <summary>An on/off control (replaces a debug toggle hotkey).</summary>
         public Panel Toggle(string label, Func<bool> get, Action<bool> set) { Hud.RegisterToggle(_id, label, get, set); return this; }
+
+        /// <summary>A draggable value (replaces typing a number into a console to find it).</summary>
+        public Panel Slider(string label, double min, double max, Func<double> get, Action<double> set, double step = 0d, string unit = null)
+        { Hud.RegisterSlider(_id, label, min, max, get, set, step, unit); return this; }
 
         /// <summary>Bind a central hotkey to an action owned by this panel.</summary>
         public Panel Hotkey(string label, HotlineKey key, Action run) { Hud.RegisterHotkey(_id, label, key, run); return this; }

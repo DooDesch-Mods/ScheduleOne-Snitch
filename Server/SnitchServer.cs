@@ -49,6 +49,8 @@ namespace Snitch.Server
         }
 
         internal static bool Running => _running;
+        /// <summary>The loopback port actually bound, for building the dashboard URL.</summary>
+        internal static int Port => _port;
         internal static int SocketCount { get { lock (_lock) return _sockets.Count; } }
 
         internal static void Start(int port, string token, string allowedOrigins)
@@ -215,6 +217,17 @@ namespace Snitch.Server
                     bool val = value == "true" || value == "1" || value == "on";
                     _mainQueue.Enqueue(() => Snitch.Panels.PanelRegistry.SetToggle(id, val));
                     break;
+                case "slider":
+                {
+                    if (string.IsNullOrEmpty(id)) return "{\"ok\":false,\"error\":\"missing id\"}";
+                    // Parsed here, on the socket thread, so a malformed value is rejected with an error the caller
+                    // can see rather than silently queued and dropped on the main thread.
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                                         System.Globalization.CultureInfo.InvariantCulture, out double sv))
+                        return "{\"ok\":false,\"error\":\"bad value\"}";
+                    _mainQueue.Enqueue(() => Snitch.Panels.PanelRegistry.SetSlider(id, sv));
+                    break;
+                }
                 default: return "{\"ok\":false,\"error\":\"unknown cmd\"}";
             }
             return "{\"ok\":true,\"cmd\":\"" + cmd + "\"}";

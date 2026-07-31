@@ -93,6 +93,11 @@ namespace Snitch.Bridge
                 PanelRegistry.RegisterToggle(panelId, toggleId, label, get, set);
                 Hotline.Api.Hud.RegisterToggle(panelId, label, get, set);
             };
+            SnitchBridge.RegisterSlider = (panelId, sliderId, label, min, max, step, unit, get, set) =>
+            {
+                PanelRegistry.RegisterSlider(panelId, sliderId, label, min, max, step, unit, get, set);
+                Hotline.Api.Hud.RegisterSlider(panelId, label, min, max, get, set, step, unit);
+            };
             SnitchBridge.RegisterText = (panelId, provider) =>
             {
                 PanelRegistry.RegisterText(panelId, provider);

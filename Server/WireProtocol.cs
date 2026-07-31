@@ -126,6 +126,18 @@ namespace Snitch.Server
                     sb.Append("{\"id\":\"").Append(Esc(p.Toggles[tg].Id)).Append("\",\"label\":\"").Append(Esc(p.Toggles[tg].Label))
                       .Append("\",\"value\":").Append(val ? "true" : "false").Append('}');
                 }
+                sb.Append("],\"sliders\":[");
+                for (int sl = 0; sl < p.Sliders.Count; sl++)
+                {
+                    if (sl > 0) sb.Append(',');
+                    SliderItem s = p.Sliders[sl];
+                    sb.Append("{\"id\":\"").Append(Esc(s.Id)).Append("\",\"label\":\"").Append(Esc(s.Label))
+                      .Append("\",\"unit\":\"").Append(Esc(s.Unit))
+                      .Append("\",\"min\":").Append(F(s.Min))
+                      .Append(",\"max\":").Append(F(s.Max))
+                      .Append(",\"step\":").Append(F(s.Step))
+                      .Append(",\"value\":").Append(F(s.Read())).Append('}');
+                }
                 sb.Append("]}");
             }
             sb.Append(']');

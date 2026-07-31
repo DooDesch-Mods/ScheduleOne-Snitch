@@ -32,7 +32,10 @@
 
     <!-- Workspace lib roots (mirrors Siesta ../Workspace/lib) -->
     <WorkspaceLibPath Condition="'$(WorkspaceLibPath)' == ''">$(MSBuildThisFileDirectory)../Workspace/lib</WorkspaceLibPath>
-    <ModsDirectory Condition="'$(ModsDirectory)' == ''">D:\Launcher\SteamLibrary\steamapps\common\Schedule I\Mods</ModsDirectory>
+    <!-- The test copy, never the real install. A build that lands in the Steam directory replaces the DLL a player
+         is running, and there is no copy of what it replaced. Pass -p:ModsDirectory=... for a real beta test,
+         deliberately. -->
+    <ModsDirectory Condition="'$(ModsDirectory)' == ''">$(MSBuildThisFileDirectory)..\_MPTest\Schedule I\Mods</ModsDirectory>
   </PropertyGroup>
 
   <!-- Backend selection derived from the active TargetFramework -->

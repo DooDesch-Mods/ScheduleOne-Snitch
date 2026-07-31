@@ -21,6 +21,42 @@ namespace Snitch.Panels
         public Action<bool> Set;
     }
 
+    /// <summary>
+    /// A continuous value a mod exposes in its Snitch panel - draggable in the in-game overlay, a real range input in
+    /// the web dashboard, and settable by id from the console. <see cref="Step"/> of 0 means continuous.
+    /// </summary>
+    internal sealed class SliderItem
+    {
+        public string Id;
+        public string Label;
+        public string Unit;
+        public double Min;
+        public double Max;
+        public double Step;
+        public Func<double> Get;
+        public Action<double> Set;
+
+        /// <summary>Clamp to range and snap to the step - applied on every write, wherever it came from. A setter
+        /// must never see a value outside the range it declared, whether that came from a drag, the dashboard or a
+        /// typo in the console.</summary>
+        public double Quantize(double v)
+        {
+            if (Max > Min)
+            {
+                if (v < Min) v = Min;
+                else if (v > Max) v = Max;
+            }
+            if (Step > 0d) v = Min + Math.Round((v - Min) / Step) * Step;
+            return v;
+        }
+
+        public double Read()
+        {
+            if (Get == null) return Min;
+            try { return Get(); } catch { return Min; }
+        }
+    }
+
     /// <summary>One mod's panel: a named, toggleable group that owns free-text readouts, action buttons and toggles.
     /// Its numeric counters and state distributions are NOT held here - they live in the counter/state registries
     /// and are matched to this panel by id-prefix at render/serialize time, so old probes light up unchanged.</summary>
@@ -32,6 +68,7 @@ namespace Snitch.Panels
         public readonly List<Func<string>> Texts = new List<Func<string>>(2);
         public readonly List<ActionItem> Actions = new List<ActionItem>(4);
         public readonly List<ToggleItem> Toggles = new List<ToggleItem>(4);
+        public readonly List<SliderItem> Sliders = new List<SliderItem>(4);
     }
 
     /// <summary>
@@ -46,6 +83,7 @@ namespace Snitch.Panels
         private static readonly Dictionary<string, PanelModel> _byId = new Dictionary<string, PanelModel>(8);
         private static readonly Dictionary<string, ActionItem> _actions = new Dictionary<string, ActionItem>(16);
         private static readonly Dictionary<string, ToggleItem> _toggles = new Dictionary<string, ToggleItem>(16);
+        private static readonly Dictionary<string, SliderItem> _sliders = new Dictionary<string, SliderItem>(16);
 
         internal static IReadOnlyList<PanelModel> All => _panels;
         internal static int Count => _panels.Count;
@@ -102,6 +140,24 @@ namespace Snitch.Panels
             _toggles[toggleId] = item;
         }
 
+        internal static void RegisterSlider(string panelId, string sliderId, string label,
+                                            double min, double max, double step, string unit,
+                                            Func<double> get, Action<double> set)
+        {
+            if (get == null || set == null || string.IsNullOrEmpty(sliderId)) return;
+            if (max <= min) return;   // an inverted or empty range has no meaningful knob position
+
+            PanelModel p = GetOrCreate(panelId, null);
+            var item = new SliderItem
+            {
+                Id = sliderId, Label = label ?? sliderId, Unit = unit ?? "",
+                Min = min, Max = max, Step = step > 0d ? step : 0d, Get = get, Set = set,
+            };
+            p.Sliders.RemoveAll(s => s.Id == sliderId);
+            p.Sliders.Add(item);
+            _sliders[sliderId] = item;
+        }
+
         internal static void BindPanelLog(string panelId) => GetOrCreate(panelId, null).HasLog = true;
 
         /// <summary>Invoke an action by id (main thread). Returns false if no such action.</summary>
@@ -126,6 +182,23 @@ namespace Snitch.Panels
                 try { return t.Get != null && t.Get(); } catch { }
             }
             return false;
+        }
+
+        internal static SliderItem GetSlider(string sliderId)
+        {
+            if (string.IsNullOrEmpty(sliderId)) return null;
+            _sliders.TryGetValue(sliderId, out SliderItem s);
+            return s;
+        }
+
+        /// <summary>Write a slider by id (main thread), clamped and snapped. Returns false if no such slider.</summary>
+        internal static bool SetSlider(string sliderId, double value)
+        {
+            SliderItem s = GetSlider(sliderId);
+            if (s == null) return false;
+            try { s.Set?.Invoke(s.Quantize(value)); }
+            catch (Exception e) { Core.Log?.Warning($"[snitch] slider '{sliderId}' threw: {e.Message}"); }
+            return true;
         }
     }
 }

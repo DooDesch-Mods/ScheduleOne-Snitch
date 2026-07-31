@@ -45,6 +45,7 @@ namespace Snitch
                 .Action("Start sampling", SnitchCore.Start)
                 .Action("Stop sampling", SnitchCore.Stop)
                 .Action("Reset", () => { SnitchCore.Stop(); SnitchCore.Start(); })
+                .Action("Open dashboard", OpenDashboard)
                 .Toggle("Phone remote (scan the QR)", () => LanServer.Running, SetLanRemote)
                 .Image(Snitch.UI.QrImage.Build);
 
@@ -98,6 +99,46 @@ namespace Snitch
         /// <summary>Turn the phone remote on/off from the in-game panel toggle. On = start the LAN endpoint AND a relay
         /// session (so the QR works both on the same Wi-Fi and across networks) and persist the preference; off = stop
         /// both. The relay E2E and the LAN shortcut share the LAN server's token, so one QR drives both.</summary>
+        /// <summary>
+        /// Opens the dashboard in the player's browser, from the panel button or 'snitch dashboard'.
+        ///
+        /// Local first: when a dashboard is bundled beside the DLL (Mods/Snitch/wwwroot) and the loopback server is
+        /// up, that copy is served on the same port as the data - so it works with no internet at all and needs no
+        /// CORS. Otherwise the hosted build, which connects back to the same loopback socket.
+        ///
+        /// If the local server is off entirely there is nothing to connect to and no point opening either, so that
+        /// case says so instead of launching a browser at a page that will sit there failing to connect.
+        /// </summary>
+        internal static string DashboardUrl()
+        {
+            if (SnitchServer.Running && Server.WebAssets.HasBundledDashboard())
+                return "http://127.0.0.1:" + SnitchServer.Port + "/";
+            return "https://snitch.doodesch.de";
+        }
+
+        internal static void OpenDashboard()
+        {
+            if (!SnitchServer.Running)
+            {
+                Log.Warning("[snitch] the local data server is off - a dashboard would have nothing to connect to. "
+                          + "Set ServerEnabled in MelonPreferences and restart.");
+                return;
+            }
+
+            string url = DashboardUrl();
+            try
+            {
+                UnityEngine.Application.OpenURL(url);
+                Log.Msg("[snitch] opened " + url
+                      + (url.StartsWith("http://127") ? " (bundled dashboard)" : " (hosted dashboard, connects back to loopback)"));
+            }
+            catch (Exception e)
+            {
+                // Opening a browser is the game's business and it can refuse. The URL is still useful by hand.
+                Log.Warning("[snitch] could not open a browser (" + e.Message + "). Open this yourself: " + url);
+            }
+        }
+
         private static void SetLanRemote(bool on)
         {
             Preferences.LanAccess = on;

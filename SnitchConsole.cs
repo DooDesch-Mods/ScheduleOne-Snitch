@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using HarmonyLib;
 using MelonLoader;
@@ -66,6 +67,8 @@ namespace Snitch
                     case "panels": PanelsList(); break;
                     case "act": ActCmd(p); break;
                     case "toggle": ToggleCmd(p); break;
+                    case "slider": SliderCmd(p); break;
+                    case "dashboard": Core.OpenDashboard(); break;
                     case "log": LogCmd(p); break;
                     case "vanilla": Vanilla(p); break;
                     case "lan": Lan(p); break;
@@ -86,7 +89,7 @@ namespace Snitch
         private static void Help()
         {
             Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | "
-                + "panels | act <actionId> | toggle <toggleId> [on|off] | log [<channel>|all] [n] | "
+                + "panels | act <actionId> | toggle <toggleId> [on|off] | slider <sliderId> [value] | dashboard | log [<channel>|all] [n] | "
                 + "vanilla [on|off] | lan [on|off] | ablate <lever> | levers | report [md|csv|all]  "
                 + "(in-game overlay: install Hotline, then press its master key or 'hotline help')");
         }
@@ -101,7 +104,7 @@ namespace Snitch
             for (int i = 0; i < panels.Count; i++)
             {
                 PanelModel p = panels[i];
-                Log($"  {p.Id,-16} actions={p.Actions.Count} toggles={p.Toggles.Count} title=\"{p.Title}\"");
+                Log($"  {p.Id,-16} actions={p.Actions.Count} toggles={p.Toggles.Count} sliders={p.Sliders.Count} title=\"{p.Title}\"");
             }
         }
 
@@ -117,6 +120,35 @@ namespace Snitch
             string id = p[2];
             bool val = BoolArg(p, 3, !PanelRegistry.GetToggle(id));
             Log(PanelRegistry.SetToggle(id, val) ? $"{id} = {val}" : "no toggle '" + id + "'");
+        }
+
+        /// <summary>
+        /// Read or write a slider from the console. A slider is a mouse control, and a mouse control cannot be driven
+        /// by an automated harness - this is the same value reachable by typing, which keeps a tuning session
+        /// reproducible and lets a found value be read back and written into code.
+        /// </summary>
+        private static void SliderCmd(string[] p)
+        {
+            if (p.Length <= 2) { Log("usage: snitch slider <sliderId> [value] (omit the value to read it). 'snitch panels' lists panels."); return; }
+
+            string id = p[2];
+            SliderItem s = PanelRegistry.GetSlider(id);
+            if (s == null) { Log("no slider '" + id + "'"); return; }
+
+            if (p.Length <= 3)
+            {
+                Log($"{id} = {s.Read():0.###} {s.Unit} (range {s.Min:0.###}..{s.Max:0.###}, step {s.Step:0.###})".Replace("  ", " ").TrimEnd());
+                return;
+            }
+
+            if (!double.TryParse(p[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
+            {
+                Log("not a number: " + p[3]);
+                return;
+            }
+
+            PanelRegistry.SetSlider(id, v);
+            Log($"{id} = {s.Read():0.###} {s.Unit}".TrimEnd());
         }
 
         private static void LogCmd(string[] p)

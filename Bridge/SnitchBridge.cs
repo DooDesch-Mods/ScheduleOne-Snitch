@@ -31,5 +31,10 @@ namespace Snitch.Bridge
         public static Action<string, Func<string>> RegisterText;                            // panelId, multi-line readout provider
         public static Action<string> BindPanelLog;                                          // panelId -> show its log channel in the panel
         public static Action<string, int, string> Log;                                      // channel, level(0=info,1=warn,2=error), message
+
+        // A continuous value with a draggable track. Flat parameter list rather than a settings object so the
+        // contract stays standard-BCL-only, like every other field here.
+        public static Action<string, string, string, double, double, double, string, Func<double>, Action<double>> RegisterSlider;
+        // panelId, sliderId, label, min, max, step (0 = continuous), unit, get, set
     }
 }

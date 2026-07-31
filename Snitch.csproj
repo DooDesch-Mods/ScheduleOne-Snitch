@@ -64,6 +64,9 @@
        Remove is a no-op there. -->
   <ItemGroup>
     <Compile Remove="Workspace/**/*.cs" />
+    <!-- The modder shim is its own assembly and lives in this repo only so modders can get it.
+         Compiling it into the host too would give the mod a second copy of the client that binds to itself. -->
+    <Compile Remove="Snitch.Api/**/*.cs" />
   </ItemGroup>
 
   <!-- The Hotline framework's modder shim is VENDORED as a single dropped-in file at Compat/HotlineApi.cs (the

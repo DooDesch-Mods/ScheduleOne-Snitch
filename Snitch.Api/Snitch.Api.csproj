@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Snitch.Api - the modder-facing no-op shim for the Snitch profiler.
+    A tiny, self-contained netstandard2.0 assembly with ZERO references (no MelonLoader, IL2CPP or Unity). A
+    modder either references this DLL or drops the single Snitch.cs file into their own project. It locates the
+    running Snitch host by reflection (Snitch.Bridge.SnitchBridge) and binds standard BCL delegates - so it
+    shares NO type with the host and is a true zero-overhead no-op when Snitch is not installed. Lights up
+    automatically when it is. Usage: using (Snitch.Api.Snitch.Sample("MyMod.Foo")) { ... }
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Snitch.Api</RootNamespace>
+    <AssemblyName>Snitch.Api</AssemblyName>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+</Project>

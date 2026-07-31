@@ -2,6 +2,35 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.5.0] - 2026-07-31
+
+Tune a mod's values by dragging them, and open the dashboard without leaving the game.
+
+### Added
+- **Sliders in mod panels.** A mod can expose a value as a slider (`Profiler.RegisterSlider`,
+  `Panel.Slider`) instead of a number you type into the console. Snitch clamps it to the declared range and
+  snaps it to the step before the mod's setter runs, so every write path - dragging in game, the web
+  dashboard, the phone remote, `snitch slider` - is bounded identically.
+- Sliders render everywhere panels already do: the in-game overlay, the web dashboard and the phone remote.
+- `snitch slider <sliderId> [value]` reads or writes one from the console. Omit the value to read it back.
+  A slider is a mouse control and cannot be driven by a test harness; this is the scriptable equivalent.
+- **Open dashboard** button in the Snitch panel, and `snitch dashboard`. It serves the bundled copy from
+  `Mods/Snitch/wwwroot` when one is present, otherwise the hosted build, which connects back to the same
+  loopback socket. With the data server off it says so rather than opening a page that cannot connect.
+
+### Fixed
+- `snitch hud` and `snitch panel <id>` were still documented after 1.3.0 moved the overlay to Hotline, so
+  following the docs printed "unknown". The wiki now matches the commands that exist.
+
+### Requirements
+- In-game sliders need [Hotline](https://github.com/DooDesch-Mods/ScheduleOne-Hotline) 1.2.0 or newer, which
+  draws them. Without Hotline, Snitch still runs and the sliders remain usable from the console and the
+  dashboard.
+
+### Notes
+- Control ids are slugified from the label and punctuation is dropped, so two labels differing only in
+  punctuation collide and the second replaces the first. Give each control distinct words.
+
 ## [1.4.0] - 2026-07-08
 
 Use your phone as a remote for the profiler - scan a QR and start/stop sampling or trigger any mod's actions

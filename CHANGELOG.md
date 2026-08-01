@@ -2,6 +2,12 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.5.1] - 2026-08-01
+
+### Changed
+- Runs on Schedule I 0.4.6f11.
+- Needs S1API 3.1.1, up from 3.0.5. Update it along with the mod.
+
 ## [1.5.0] - 2026-07-31
 
 Tune a mod's values by dragging them, and open the dashboard without leaving the game.

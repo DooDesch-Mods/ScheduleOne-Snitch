@@ -10,7 +10,7 @@
 > alongside a combined log timeline and a live **[web dashboard](https://snitch.doodesch.de)** so you can see
 > frame times, section costs, and entity-state distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue)
+![Version](https://img.shields.io/badge/version-1.5.1-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)

@@ -5,7 +5,7 @@ using Snitch.Engine;
 using Snitch.Logging;
 using Snitch.Server;
 
-[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.5.1", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
+[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.6.0", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
 [assembly: MelonOptionalDependencies("Hotline")]
 
@@ -40,7 +40,7 @@ namespace Snitch
 
             // Snitch's own in-game surface is now a Hotline panel (the overlay lives in the Hotline framework): the
             // profiler overview as a text readout plus sampling controls. Load-order-proof; a no-op if Hotline is absent.
-            Hotline.Api.Hud.RegisterPanel("Snitch", "Snitch (Profiler)")
+            Hotline.Api.Hud.RegisterPanel(SnitchConsole.PanelId, "Snitch (Profiler)")
                 .Text(Snitch.UI.ProfilerHud.BuildOverview)
                 .Action("Start sampling", SnitchCore.Start)
                 .Action("Stop sampling", SnitchCore.Stop)

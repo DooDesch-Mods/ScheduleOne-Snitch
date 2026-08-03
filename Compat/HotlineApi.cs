@@ -45,6 +45,10 @@ namespace Hotline.Api
         private static Action<string> _bindPanelLog;
         private static Action<string, int, string> _log;
         private static Action<string, string, int, Action> _registerHotkey;
+        // Overlay control - null on an older Hotline host, where the matching methods are no-ops.
+        private static Action<bool> _showOverlay;
+        private static Action<string, bool> _showPanel;
+        private static Func<string, bool> _isPanelVisible;
 
         /// <summary>True only when the Hotline host is installed AND bound. You rarely need this - the API is a safe
         /// no-op when absent.</summary>
@@ -117,6 +121,29 @@ namespace Hotline.Api
         /// - ARGB32 pixels, row-major top-down - or null/empty for "nothing to show". Polled by the host on the main
         /// thread and drawn Point-filtered. Kept as a raw int[] so this shim needs no Unity reference. Load-order-proof;
         /// a no-op on an older Hotline host that predates image support.</summary>
+        /// <summary>Raise or dismiss the whole Hotline overlay from code. No-op when Hotline is absent or older.</summary>
+        public static void ShowOverlay(bool show)
+        {
+            EnsureBound();
+            _showOverlay?.Invoke(show);
+        }
+
+        /// <summary>Show or hide one panel; showing it raises the overlay too. No-op when Hotline is absent or older.</summary>
+        public static void ShowPanel(string panelId, bool show)
+        {
+            if (string.IsNullOrEmpty(panelId)) return;
+            EnsureBound();
+            _showPanel?.Invoke(panelId, show);
+        }
+
+        /// <summary>Whether that panel is on screen right now.</summary>
+        public static bool IsPanelVisible(string panelId)
+        {
+            if (string.IsNullOrEmpty(panelId)) return false;
+            EnsureBound();
+            try { return _isPanelVisible != null && _isPanelVisible(panelId); } catch { return false; }
+        }
+
         public static void RegisterImage(string panelId, Func<int[]> provider)
         {
             if (provider == null) return;
@@ -226,6 +253,9 @@ namespace Hotline.Api
                 _bindPanelLog = Get<Action<string>>(t, "BindPanelLog");
                 _log = Get<Action<string, int, string>>(t, "Log");
                 _registerHotkey = Get<Action<string, string, int, Action>>(t, "RegisterHotkey");
+                _showOverlay = Get<Action<bool>>(t, "ShowOverlay");
+                _showPanel = Get<Action<string, bool>>(t, "ShowPanel");
+                _isPanelVisible = Get<Func<string, bool>>(t, "IsPanelVisible");
 
                 if (_registerPanel == null) return;   // partial table - try again next call
                 _bound = true;

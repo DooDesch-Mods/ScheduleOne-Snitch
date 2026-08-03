@@ -2,6 +2,14 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.0] - 2026-08-04
+
+### Added
+
+- `snitch open` and `snitch close` show and hide the profiler panel without touching the
+  keyboard. `snitch open all` and `snitch close all` do the same for the whole overlay.
+  Needs Hotline 1.3.0 or newer.
+
 ## [1.5.1] - 2026-08-01
 
 ### Changed

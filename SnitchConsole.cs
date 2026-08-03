@@ -68,6 +68,8 @@ namespace Snitch
                     case "act": ActCmd(p); break;
                     case "toggle": ToggleCmd(p); break;
                     case "slider": SliderCmd(p); break;
+                    case "open": OverlayCmd(true, p); break;
+                    case "close": OverlayCmd(false, p); break;
                     case "dashboard": Core.OpenDashboard(); break;
                     case "log": LogCmd(p); break;
                     case "vanilla": Vanilla(p); break;
@@ -88,13 +90,47 @@ namespace Snitch
 
         private static void Help()
         {
-            Log("commands: start | stop | status | frame | top [n] | sections | states [id] | counters | "
+            Log("commands: open [all] | close [all] | start | stop | status | frame | top [n] | sections | states [id] | counters | "
                 + "panels | act <actionId> | toggle <toggleId> [on|off] | slider <sliderId> [value] | dashboard | log [<channel>|all] [n] | "
                 + "vanilla [on|off] | lan [on|off] | ablate <lever> | levers | report [md|csv|all]  "
-                + "(in-game overlay: install Hotline, then press its master key or 'hotline help')");
+                + "('open' shows the Snitch panel in the Hotline overlay; 'open all' shows the whole overlay)");
         }
 
         // ----- per-mod panels (data only; the in-game overlay windows are owned by the Hotline framework) -----
+
+        /// <summary>
+        /// Show or hide the profiler's in-game panel: <c>snitch open</c> / <c>snitch close</c>, and
+        /// <c>open all</c> / <c>close all</c> for the whole overlay.
+        /// <para>
+        /// The overlay used to be reachable only by pressing Hotline's master key. A keypress cannot be scripted
+        /// or checked from outside the game, so the profiler could not be driven - or verified - without someone
+        /// at the keyboard. Everything else Snitch does is a console command; this closes the gap.
+        /// </para>
+        /// </summary>
+        private static void OverlayCmd(bool show, string[] p)
+        {
+            bool whole = p.Length > 2 && p[2].ToLowerInvariant() == "all";
+
+            if (!Hotline.Api.Hud.Available)
+            {
+                Log("the in-game overlay needs the Hotline mod - install it, or use 'snitch dashboard' for the web view.");
+                return;
+            }
+
+            if (whole)
+            {
+                Hotline.Api.Hud.ShowOverlay(show);
+                Log("overlay " + (show ? "shown" : "hidden") + ".");
+                return;
+            }
+
+            Hotline.Api.Hud.ShowPanel(PanelId, show);
+            Log($"Snitch panel {(show ? "shown" : "hidden")}"
+                + (show ? " (use 'snitch open all' for every panel)." : "."));
+        }
+
+        /// <summary>The panel id Snitch registers with Hotline; kept here so the console and Core cannot drift.</summary>
+        internal const string PanelId = "Snitch";
 
         private static void PanelsList()
         {

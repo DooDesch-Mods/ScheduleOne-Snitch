@@ -53,6 +53,12 @@
   </PropertyGroup>
 
   <!-- Backend-specific GlobalUsings: keep only the active backend's file -->
+  <!-- hash's shim: one file, no references, no hard dependency. It puts Snitch's own console word into the
+       game's command list so anything that lists commands can see it. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)../Hash/Hash.Api/HashCommands.cs" Link="Hash.Api/HashCommands.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <Compile Remove="Compat/GlobalUsings.Il2Cpp.cs" Condition="'$(Backend)' != 'il2cpp'" />
     <Compile Remove="Compat/GlobalUsings.Mono.cs" Condition="'$(Backend)' != 'mono'" />

@@ -1,3 +1,4 @@
+using Hash.Api;
 using System;
 using MelonLoader;
 using Snitch.Config;
@@ -48,6 +49,10 @@ namespace Snitch
                 .Action("Open dashboard", OpenDashboard)
                 .Toggle("Phone remote (scan the QR)", () => LanServer.Running, SetLanRemote)
                 .Image(Snitch.UI.QrImage.Build);
+
+            // Nothing registers `snitch` with the game - the prefix below answers it - so no command list, help
+            // overlay or autocomplete can learn the word exists. One call puts it in the game's own list.
+            HashCommands.Add("snitch", "profiler: start, stop, top, states, report, lan", "snitch start");
 
             // The console bridge (Console.SubmitCommand prefixes) is the product's control surface. PatchAll
             // only patches the console classes; vanilla cost probes are patched on demand so a probe failure

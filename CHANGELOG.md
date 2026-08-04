@@ -2,6 +2,14 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.1] - 2026-08-04
+
+### Changed
+
+- `snitch` shows up in the game's command list, so a console autocomplete or a terminal can offer it and
+  complete it. It was answered by a patch and registered nowhere, which made it invisible to every tool that
+  lists commands. Nothing about running it changes.
+
 ## [1.6.0] - 2026-08-04
 
 ### Added

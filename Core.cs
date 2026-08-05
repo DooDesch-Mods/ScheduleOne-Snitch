@@ -6,7 +6,7 @@ using Snitch.Engine;
 using Snitch.Logging;
 using Snitch.Server;
 
-[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", "1.6.1", "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
+[assembly: MelonInfo(typeof(Snitch.Core), "Snitch", DooDesch.ModVersion.Current, "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
 [assembly: MelonOptionalDependencies("Hotline")]
 

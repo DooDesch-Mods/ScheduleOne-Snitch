@@ -2,6 +2,14 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.2] - 2026-08-09
+
+### Fixed
+
+- A mod's debug build no longer hunts for Snitch on every API call when Snitch is absent. It searched
+  five folders per call, hundreds of times during one world load.
+- Log lines no longer repeat the mod's own name. MelonLoader already puts it in front of every line.
+
 ## [1.6.1] - 2026-08-04
 
 ### Changed

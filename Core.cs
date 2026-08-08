@@ -58,7 +58,7 @@ namespace Snitch
             // only patches the console classes; vanilla cost probes are patched on demand so a probe failure
             // can never break the console.
             try { HarmonyInstance.PatchAll(); }
-            catch (Exception e) { Log.Warning("[Snitch] Harmony patch failed: " + e.Message); }
+            catch (Exception e) { Log.Warning("Harmony patch failed: " + e.Message); }
 
             // Local data server for the SnitchWeb dashboard (loopback only; idle data until sampling is armed).
             if (Preferences.Enabled && Preferences.ServerEnabled)

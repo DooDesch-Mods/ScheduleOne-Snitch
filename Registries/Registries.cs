@@ -74,7 +74,7 @@ namespace Snitch.Registries
                     StateSnapshot s = _providers[i].Poll();
                     if (s != null) { s.Id = _providers[i].Id; list.Add(s); }
                 }
-                catch (Exception e) { Core.Log?.Warning($"[Snitch] state provider '{_providers[i].Id}' threw: {e.Message}"); }
+                catch (Exception e) { Core.Log?.Warning($"state provider '{_providers[i].Id}' threw: {e.Message}"); }
             }
             return list;
         }
@@ -122,7 +122,7 @@ namespace Snitch.Registries
             {
                 var row = new CounterRow { Id = _sources[i].Id, Unit = _sources[i].Unit, State = "OK" };
                 try { row.Value = _sources[i].Read(); }
-                catch (Exception e) { row.State = "UNAVAILABLE"; Core.Log?.Warning($"[Snitch] counter '{_sources[i].Id}' threw: {e.Message}"); }
+                catch (Exception e) { row.State = "UNAVAILABLE"; Core.Log?.Warning($"counter '{_sources[i].Id}' threw: {e.Message}"); }
                 list.Add(row);
             }
             return list;

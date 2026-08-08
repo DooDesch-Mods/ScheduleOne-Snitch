@@ -131,7 +131,7 @@ namespace Snitch.Engine
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = -1;
             }
-            catch (Exception e) { Core.Log?.Warning("[Snitch] uncap failed: " + e.Message); }
+            catch (Exception e) { Core.Log?.Warning("uncap failed: " + e.Message); }
         }
 
         internal static void RestoreFramerate()

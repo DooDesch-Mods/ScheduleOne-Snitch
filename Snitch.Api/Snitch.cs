@@ -267,10 +267,12 @@ namespace Snitch.Api
             if (_bound) return;   // bound once, never probe again (fast path)
             try
             {
-                // Cheap assembly-qualified lookup every call; the expensive AppDomain scan only occasionally,
-                // so a mod that calls the API every frame while Snitch is absent doesn't scan 100+ assemblies/frame.
-                Type t = FindBridge((_probeAttempts++ % 30) == 0);
-                if (t == null) return;   // host not present yet - cheap re-probe next call (load-order proof)
+                // Probed occasionally, never every call: a mod that uses the API every frame while Snitch is
+                // absent must not pay for the search each time.
+                if ((_probeAttempts++ % 30) != 0) return;
+
+                Type t = FindBridge();
+                if (t == null) return;   // host not present yet - probed again later (load-order proof)
                 object abi = t.GetField("AbiVersion", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
                 if (abi is int v && v < 1) return;
 
@@ -309,13 +311,24 @@ namespace Snitch.Api
             return v as T;   // works because Func<>/Action<> are shared BCL types in both assemblies
         }
 
-        private static Type FindBridge(bool scan)
+        /// <summary>
+        /// The host's bridge type, or null while the host is absent.
+        ///
+        /// Deliberately walks the assemblies that are already loaded instead of asking for
+        /// <c>"Snitch.Bridge.SnitchBridge, Snitch"</c> by assembly-qualified name. That name makes the runtime
+        /// LOAD the assembly, and when there is no Snitch.dll every single call goes through MelonLoader's
+        /// resolver, which searches five directories and logs both the attempt and the failure. A Debug build
+        /// shipped without the profiler - which is what a tester gets - turned that into hundreds of directory
+        /// scans during a world load.
+        ///
+        /// Nothing is lost by not asking: the host is a MelonLoader mod, so by the time it can answer at all it
+        /// is already in the AppDomain.
+        /// </summary>
+        private static Type FindBridge()
         {
-            Type t = Type.GetType("Snitch.Bridge.SnitchBridge, Snitch", false);
-            if (t != null || !scan) return t;
             foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
             {
-                try { t = asm.GetType("Snitch.Bridge.SnitchBridge", false); if (t != null) return t; }
+                try { Type t = asm.GetType("Snitch.Bridge.SnitchBridge", false); if (t != null) return t; }
                 catch { }
             }
             return null;

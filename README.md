@@ -16,7 +16,7 @@
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
-**[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de/snitch)**
+**[Live dashboard](https://snitch.doodesch.de)** · **[Documentation](https://docs.doodesch.de/mods/snitch/)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de/snitch)**
 
 ## Features
 
@@ -102,7 +102,7 @@ using (Profiler.Sample("MyMod.Pathfinding")) { ... }              // hand-time a
 ```
 
 See the **[SnitchExample](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** mod for the full
-surface, and the **[Modder API wiki page](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki/Modder-API)**.
+surface, and the **[Modder API wiki page](https://docs.doodesch.de/mods/snitch/)**.
 
 ## How it works
 

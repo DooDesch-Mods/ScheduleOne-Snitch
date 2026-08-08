@@ -35,7 +35,6 @@
     <!-- The test copy, never the real install. A build that lands in the Steam directory replaces the DLL a player
          is running, and there is no copy of what it replaced. Pass -p:ModsDirectory=... for a real beta test,
          deliberately. -->
-    <ModsDirectory Condition="'$(ModsDirectory)' == ''">$(MSBuildThisFileDirectory)..\_MPTest\Schedule I\Mods</ModsDirectory>
   </PropertyGroup>
 
   <!-- Backend selection derived from the active TargetFramework -->
@@ -73,6 +72,10 @@
        released version and cannot drift out of it. MUST come after the Workspace Remove so CI keeps the file. -->
   <Import Project="$(MSBuildThisFileDirectory)../Workspace/build/ModVersion.props" Condition="Exists('$(MSBuildThisFileDirectory)../Workspace/build/ModVersion.props')" />
   <Import Project="$(MSBuildThisFileDirectory)Workspace/build/ModVersion.props" Condition="Exists('$(MSBuildThisFileDirectory)Workspace/build/ModVersion.props')" />
+  <!-- Where a build is allowed to install: the test copy by default, and never a real game installation
+       without saying so out loud. See Workspace/build/Deploy.props. -->
+  <Import Project="$(MSBuildThisFileDirectory)../Workspace/build/Deploy.props" Condition="Exists('$(MSBuildThisFileDirectory)../Workspace/build/Deploy.props')" />
+  <Import Project="$(MSBuildThisFileDirectory)Workspace/build/Deploy.props" Condition="Exists('$(MSBuildThisFileDirectory)Workspace/build/Deploy.props')" />
 
 
   <!-- hash's shim: one file, no references, no hard dependency. It puts this mod's own console words into the

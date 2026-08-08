@@ -102,7 +102,7 @@ using (Profiler.Sample("MyMod.Pathfinding")) { ... }              // hand-time a
 ```
 
 See the **[SnitchExample](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** mod for the full
-surface, and the **[Modder API wiki page](https://docs.doodesch.de/mods/snitch/)**.
+surface, and the **[Modder API documentation page](https://docs.doodesch.de/mods/snitch/guides/modder-api/)**.
 
 ## How it works
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -24,7 +25,7 @@ namespace Snitch.Server
         /// feature-gate: it shows an optional surface only when the connected instance lists that token. Older
         /// Snitch builds omit tokens they don't have (e.g. "phone-remote"), so a newer dashboard hides those
         /// features for them; newer builds can add tokens without breaking older dashboards (unknown = ignored).</summary>
-        internal const string CapsArray = "[\"panels\",\"logs\",\"phone-remote\"]";
+        internal const string CapsArray = "[\"panels\",\"logs\",\"phone-remote\",\"unattributed\"]";
 
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -43,6 +44,22 @@ namespace Snitch.Server
             Num(sb, "meanFps", f.MeanFps); Num(sb, "minFps", f.MinFps);
             Num(sb, "gc0", f.Gc0Per1000); Num(sb, "gc1", f.Gc1Per1000);
             sb.Append("\"samples\":").Append(f.Samples).Append("},");
+
+            // What the frame cost against what the sections accounted for. Additive: a dashboard that predates this
+            // block ignores it, and a dashboard that knows it can say where the rest of the frame went.
+            AttributionStats at = SnitchCore.LatestAttribution;
+            sb.Append("\"attribution\":{");
+            Num(sb, "frameMeanMs", at.FrameMeanMs); Num(sb, "frameMedianMs", at.FrameMedianMs);
+            Num(sb, "attributedMs", at.AttributedMeanMs); Num(sb, "unattributedMs", at.UnattributedMeanMs);
+            Num(sb, "unattributedPct", at.UnattributedPct); Num(sb, "maxUnattributedMs", at.MaxUnattributedMs);
+            Num(sb, "spikeFactor", at.SpikeFactor);
+            Num(sb, "spikeExcessMs", at.SpikeMeanExcessMs); Num(sb, "spikeUnexplainedMs", at.SpikeMeanUnexplainedMs);
+            Num(sb, "spikeUnexplainedPct", at.SpikeUnexplainedPct); Num(sb, "worstUnexplainedMs", at.WorstUnexplainedMs);
+            sb.Append("\"spikeFrames\":").Append(at.SpikeFrames)
+              .Append(",\"samples\":").Append(at.Samples)
+              .Append(",\"pointsAtHiddenWork\":").Append(at.PointsAtHiddenWork ? "true" : "false")
+              .Append(",\"patchTiming\":").Append(Snitch.Vanilla.PatchInstrument.Enabled ? "true" : "false")
+              .Append(",\"wrappedPatches\":").Append(Snitch.Vanilla.PatchInstrument.WrappedCount).Append("},");
 
             sb.Append("\"sections\":[");
             var rows = SnitchCore.LatestSections;
@@ -122,7 +139,13 @@ namespace Snitch.Server
                 {
                     if (tg > 0) sb.Append(',');
                     bool val = false;
-                    try { val = p.Toggles[tg].Get != null && p.Toggles[tg].Get(); } catch { }
+                    try { val = p.Toggles[tg].Get != null && p.Toggles[tg].Get(); }
+                    catch (Exception e)
+                    {
+                        // Another mod's getter threw. The dashboard shows the toggle as off rather than losing the
+                        // whole snapshot, but the reason has to be readable somewhere.
+                        Core.Log?.Warning($"[snitch] toggle '{p.Toggles[tg].Id}' threw while being read: " + e.Message);
+                    }
                     sb.Append("{\"id\":\"").Append(Esc(p.Toggles[tg].Id)).Append("\",\"label\":\"").Append(Esc(p.Toggles[tg].Label))
                       .Append("\",\"value\":").Append(val ? "true" : "false").Append('}');
                 }
@@ -150,7 +173,11 @@ namespace Snitch.Server
             for (int i = 0; i < p.Texts.Count; i++)
             {
                 string s = null;
-                try { s = p.Texts[i]?.Invoke(); } catch { }
+                try { s = p.Texts[i]?.Invoke(); }
+                catch (Exception e)
+                {
+                    Core.Log?.Warning($"[snitch] a text provider on panel '{p.Id}' threw and its block is missing: " + e.Message);
+                }
                 if (string.IsNullOrEmpty(s)) continue;
                 if (tb.Length > 0) tb.Append('\n');
                 tb.Append(s);

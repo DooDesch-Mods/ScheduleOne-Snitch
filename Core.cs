@@ -52,7 +52,7 @@ namespace Snitch
 
             // Nothing registers `snitch` with the game - the prefix below answers it - so no command list, help
             // overlay or autocomplete can learn the word exists. One call puts it in the game's own list.
-            HashCommands.Add("snitch", "profiler: start, stop, top, states, report, lan", "snitch start");
+            HashCommands.Add("snitch", "profiler: start, stop, top, unattributed, patches, states, report", "snitch start");
 
             // The console bridge (Console.SubmitCommand prefixes) is the product's control surface. PatchAll
             // only patches the console classes; vanilla cost probes are patched on demand so a probe failure

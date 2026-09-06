@@ -74,9 +74,22 @@ namespace Snitch.Vanilla
         {
             Type[] types;
             try { types = asm.GetTypes(); }
-            catch (ReflectionTypeLoadException e) { types = e.Types; }
-            catch { return null; }
-            if (types == null) return null;
+            catch (ReflectionTypeLoadException e)
+            {
+                // Partial results are useful: the probe type may well be among the ones that did load.
+                types = e.Types;
+                Core.Log?.Warning($"[snitch] probe discovery: {asm.GetName().Name} loaded only part of its types - " + e.Message);
+            }
+            catch (Exception e)
+            {
+                Core.Log?.Warning($"[snitch] probe discovery: {asm.GetName().Name} would not enumerate its types - " + e.Message);
+                return null;
+            }
+            if (types == null)
+            {
+                Core.Log?.Warning($"[snitch] probe discovery: {asm.GetName().Name} returned no type list; skipping it.");
+                return null;
+            }
             foreach (Type t in types) if (t != null && t.Name == leaf) return t;
             return null;
         }
@@ -135,7 +148,10 @@ namespace Snitch.Vanilla
         private static IEnumerable<MelonMod> RegisteredMods()
         {
             try { return MelonMod.RegisteredMelons; }
-            catch { }
+            catch (Exception e)
+            {
+                Core.Log?.Warning("[snitch] MelonMod.RegisteredMelons is unreadable, falling back to reflection - " + e.Message);
+            }
             // fallback: reflect a static RegisteredMelons on MelonMod / MelonBase
             foreach (Type t in new[] { typeof(MelonMod), typeof(MelonBase) })
             {
@@ -144,19 +160,54 @@ namespace Snitch.Vanilla
                     PropertyInfo p = t.GetProperty("RegisteredMelons", BindingFlags.Public | BindingFlags.Static);
                     object v = p?.GetValue(null);
                     if (v is IEnumerable<MelonMod> mods) return mods;
+                    Core.Log?.Msg($"[snitch] {t.Name}.RegisteredMelons is not a mod list here; trying the next candidate.");
                 }
-                catch { }
+                catch (Exception e)
+                {
+                    Core.Log?.Warning($"[snitch] reflecting {t.Name}.RegisteredMelons failed - " + e.Message);
+                }
             }
+            Core.Log?.Error("[snitch] no route to the loaded mod list; auto-instrumentation and probe discovery are off.");
             return null;
         }
 
         private static string ModName(MelonMod mod)
         {
             string name = null;
-            try { name = mod.Info?.Name; } catch { }
+            try { name = mod.Info?.Name; }
+            catch (Exception e)
+            {
+                // A nameless mod still gets instrumented, it just groups under its type instead of its title.
+                Core.Log?.Warning("[snitch] auto-instrument: a mod would not give its name - " + e.Message);
+            }
             if (string.IsNullOrEmpty(name)) name = mod.GetType().Namespace ?? mod.GetType().Name;
-            // group prefix splits on the first '.', so keep the name dot-free for a clean group
-            return name.Replace('.', '_').Replace(' ', '_');
+            return GroupName(name);
+        }
+
+        /// <summary>The section GROUP a mod's labels sort under. The group prefix splits on the first '.', so the
+        /// name has to stay dot-free - and every source of labels for one mod (lifecycle methods, Harmony patches)
+        /// has to derive it the same way, or one mod would appear as two groups.</summary>
+        internal static string GroupName(string rawName)
+        {
+            if (string.IsNullOrEmpty(rawName)) return "(unnamed)";
+
+            // Mods are free to colour their MelonInfo name with ANSI escapes. Those are invisible in the game's own
+            // console and wreck every other surface a label reaches - the report file, the CSVs, the dashboard - so
+            // they come out here, at the one place every label is built.
+            var sb = new System.Text.StringBuilder(rawName.Length);
+            for (int i = 0; i < rawName.Length; i++)
+            {
+                char c = rawName[i];
+                if (c == '\u001b')
+                {
+                    while (i < rawName.Length && rawName[i] != 'm') i++;   // ESC [ <digits> m
+                    continue;
+                }
+                if (c < ' ') continue;
+                sb.Append(c == '.' || c == ' ' ? '_' : c);
+            }
+            string cleaned = sb.ToString();
+            return cleaned.Length > 0 ? cleaned : "(unnamed)";
         }
     }
 }

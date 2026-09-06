@@ -33,6 +33,19 @@ namespace Snitch.UI
                 sb.Append("\n<color=#8bf>phone</color> http://").Append(Snitch.Server.LanServer.Ip)
                   .Append(':').Append(Snitch.Server.LanServer.Port).Append("  token ").Append(Snitch.Server.LanServer.Token);
 
+            // One line for the frame time nothing here explains. It is the difference between "your mods are cheap"
+            // and "your mods look cheap because the expensive part is somewhere I do not wrap".
+            AttributionStats at = SnitchCore.LatestAttribution;
+            if (at.Samples > 0)
+            {
+                string ucol = at.PointsAtHiddenWork ? "#f55" : "#999";
+                sb.Append("\n<color=").Append(ucol).Append(">unattributed</color> ")
+                  .Append(at.UnattributedMeanMs.ToString("F2")).Append(" ms  ")
+                  .Append(at.UnattributedPct.ToString("F0")).Append('%');
+                if (at.PointsAtHiddenWork)
+                    sb.Append("  <color=#f55>").Append(at.SpikeFrames).Append(" bad frame(s) unexplained</color>");
+            }
+
             var rows = SnitchCore.LatestSections;
             if (rows != null && rows.Count > 0)
             {

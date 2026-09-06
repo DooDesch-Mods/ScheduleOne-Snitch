@@ -416,6 +416,18 @@ namespace Snitch.Vanilla
         }
 
         // ----- hot path: one shared prefix/finalizer, __originalMethod picks the section -----
+        //
+        // HOW TO READ A ZERO HERE. Neither zero in this table is proof of "free":
+        //
+        //  - 0 calls/frame. Usually the patch simply did not run in the window. But Harmony's wrapper for the
+        //    TARGET calls the patch method by a detour on its entry, and a small enough method can be inlined into
+        //    that wrapper when it is JIT-compiled, which bypasses the detour and means Pre/Fin never run. Nothing
+        //    distinguishes the two cases from here, and no instance of the second was observed - so treat 0 calls
+        //    on a patch you know is hot as "not measured", not as "did not happen".
+        //  - 0.000 ms/frame with calls. That is below the printed resolution, not zero: a 200 ns patch called once
+        //    a frame rounds to 0.000 at three decimals.
+        //
+        // Both readings matter because this table is where someone decides a patch is not the problem.
 
         private static void Pre(MethodBase __originalMethod)
         {

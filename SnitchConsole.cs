@@ -461,6 +461,8 @@ namespace Snitch
             }
             if (!Snitch.Vanilla.PatchInstrument.Enabled)
                 Log("  timing is OFF, so those numbers are stale - 'snitch patches on' arms them.");
+            Log("  a zero is not proof of free: 0.000 ms with calls is below the printed resolution, and 0 calls on "
+              + "a patch you know is hot means it was not measured (the JIT can inline a small patch method past the wrapper).");
         }
 
         private static double Cost(Dictionary<string, SectionRow> byLabel, WrappedPatch w)

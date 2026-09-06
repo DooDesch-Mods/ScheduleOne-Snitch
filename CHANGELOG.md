@@ -2,6 +2,23 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.7.0] - 2026-09-06
+
+### Added
+
+- The `(unattributed)` row: how much of a frame ran inside no section at all. A mod reporting 0.65 ms/frame
+  was costing 144 ms in a Harmony postfix nothing wrapped.
+- `snitch unattributed` splits your worst frames into the part your sections explain and the part nothing does.
+- `snitch patches on`: times other mods' Harmony prefixes, postfixes and finalizers under the mod that
+  owns them. Off by default; `WrapModPatches` arms it with sampling.
+- `SpikeFactor` sets how far above the window median a frame has to be to count as bad. Default 1.5.
+
+### Fixed
+
+- Section labels no longer carry ANSI colour escapes out of a mod's name. They reached `report_*.md` and
+  `sections_*.csv` as raw bytes.
+- The dashboard showed version 1.5.1 for four releases. It shows the running build now.
+
 ## [1.6.2] - 2026-08-09
 
 ### Fixed

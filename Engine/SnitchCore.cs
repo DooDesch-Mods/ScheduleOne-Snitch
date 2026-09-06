@@ -26,6 +26,7 @@ namespace Snitch.Engine
         internal static List<SectionRow> LatestSections = new List<SectionRow>();
         internal static List<StateSnapshot> LatestStates = new List<StateSnapshot>();
         internal static List<CounterRow> LatestCounters = new List<CounterRow>();
+        internal static AttributionStats LatestAttribution;
 
         // pre-serialized wire JSON + frame/scene, set on the main thread so the server's background threads can
         // hand them out without touching Unity or the mutable lists.
@@ -52,8 +53,12 @@ namespace Snitch.Engine
             _active = true;
             FrameSampler.ResetGcWindow();
             SectionProfiler.Reset();
+            Attribution.Reset();
             Vanilla.AutoInstrument.DiscoverProbes();   // register each mod's counters/state once (zero mod wiring)
             if (Preferences.AutoInstrument) Vanilla.AutoInstrument.Enable();   // per-mod frame cost, zero mod code
+            // Harmony patches are opt-in: wrapping hundreds of them costs, and a profiler that changes what it
+            // measures is worse than useless. The unattributed line is what tells a user to switch this on.
+            if (Preferences.WrapModPatches || Vanilla.PatchInstrument.Requested) Vanilla.PatchInstrument.Enable();
             _pollAccum = 999f;   // force a poll on the next tick
             Core.Log?.Msg("[snitch] sampling started.");
         }
@@ -62,6 +67,7 @@ namespace Snitch.Engine
         {
             _active = false;
             Vanilla.AutoInstrument.Disable();
+            Vanilla.PatchInstrument.Suspend();
             Core.Log?.Msg("[snitch] sampling stopped.");
         }
 
@@ -72,7 +78,7 @@ namespace Snitch.Engine
             if (_selfId < 0) _selfId = SectionProfiler.GetId("Snitch.Self");
             SectionProfiler.Begin(_selfId);
 
-            FrameSampler.Tick();
+            double frameMs = FrameSampler.Tick();
             LastFrame = Time.frameCount;
 
             _pollAccum += Time.unscaledDeltaTime;
@@ -86,13 +92,19 @@ namespace Snitch.Engine
             Ablation.AblationEngine.Tick();   // advance an active ablation sweep (no-op when idle)
 
             SectionProfiler.End(_selfId);
-            SectionProfiler.Flush();   // frame boundary: push per-frame section totals into the rolling windows
+            // Frame boundary: push the per-frame section totals into the rolling windows. What comes back is the
+            // root-level total - wall time inside any section, nesting counted once - which paired with this
+            // frame's wall time is the whole unattributed accounting.
+            double attributedMs = SectionProfiler.Flush();
+            Attribution.Push(frameMs, attributedMs);
         }
 
         private static void Poll()
         {
             LatestFrame = FrameSampler.Snapshot();
+            LatestAttribution = Attribution.Snapshot(Preferences.SpikeFactor);
             LatestSections = SectionProfiler.Report(LatestFrame.MeanMs);
+            Attribution.AppendRow(LatestSections, LatestAttribution, LatestFrame.MeanMs);
             LatestStates = StateRegistry.PollAll();
             LatestCounters = CounterRegistry.ReadAll();
 

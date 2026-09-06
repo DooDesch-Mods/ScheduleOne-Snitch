@@ -20,6 +20,8 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 
 - **Frame time** distribution + fps + GC pressure - the load-bearing, build-independent truth.
 - **Section costs** - time named code sections (yours, or vanilla hot paths like `NPCMovement.Update`).
+- **Unattributed time** - an `(unattributed)` row for the part of a frame that ran inside no section at all, and how much of your worst frames it cannot explain.
+- **Harmony patch timing** - `snitch patches on` times every other mod's prefixes, postfixes and finalizers under the mod that owns them.
 - **State distributions** - NPCs by movement/visibility, trash by physics state, quests by state, + your own.
 - **Per-mod panels** - each mod that reports data gets its own toggleable, movable, resizable panel (counters, state, text, buttons, toggles).
 - **Log timeline** - a combined, chronological view of every mod's log output, filterable per mod.
@@ -42,8 +44,9 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 Install **Hotline** (pulled in as a dependency) and press **F6** for its overlay; Snitch's panel is inside,
 with Start/Stop/Reset and live stats. Then `snitch start` (or the Start button on the panel). Or open the web
 dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live.
-Console verbs: `start, stop, status, frame, top, sections, states, counters, panels, act, toggle, log,
-vanilla on|off, ablate <lever>, levers, report`. Reports go to `Mods/Snitch/runs/`.
+Console verbs: `start, stop, status, frame, top, sections, states, counters, unattributed,
+patches on|off|list, panels, act, toggle, log, vanilla on|off, ablate <lever>, levers, report`.
+Reports go to `Mods/Snitch/runs/`.
 
 ## For modders
 

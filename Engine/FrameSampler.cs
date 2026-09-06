@@ -29,13 +29,16 @@ namespace Snitch.Engine
 
         private static int _savedVSync = -999, _savedTarget = -999;
 
-        internal static void Tick()
+        /// <summary>Record this frame's wall time. Returns the ms it recorded so the caller can pair it with the
+        /// frame's attributed section total without reading the ring back.</summary>
+        internal static double Tick()
         {
             double ms = Time.unscaledDeltaTime * 1000.0;
             _ring[_head] = ms;
             _head = (_head + 1) % Window;
             if (_count < Window) _count++;
             _gcFrames++;
+            return ms;
         }
 
         internal static FrameStats Snapshot()
@@ -119,7 +122,24 @@ namespace Snitch.Engine
             return (SafeCount(1) - _gc1Base) * 1000.0 / _gcFrames;
         }
 
-        private static int SafeCount(int gen) { try { return GC.CollectionCount(gen); } catch { return 0; } }
+        private static bool _gcCountWarned;
+
+        /// <summary>GC.CollectionCount can refuse a generation the runtime does not track. That is a missing number,
+        /// not a broken frame, so it degrades to 0 - but it says so once, otherwise a permanently zero GC row would
+        /// be indistinguishable from a game that never collects.</summary>
+        private static int SafeCount(int gen)
+        {
+            try { return GC.CollectionCount(gen); }
+            catch (Exception e)
+            {
+                if (!_gcCountWarned)
+                {
+                    _gcCountWarned = true;
+                    Core.Log?.Warning($"[snitch] GC.CollectionCount(gen {gen}) refused ({e.Message}); that generation reports 0 from here on.");
+                }
+                return 0;
+            }
+        }
 
         // ----- framerate cap control (so a measurement run reflects true cost) -----
 
@@ -145,7 +165,12 @@ namespace Snitch.Engine
                     _savedVSync = -999; _savedTarget = -999;
                 }
             }
-            catch { /* best effort */ }
+            catch (Exception e)
+            {
+                // The saved values stay set, so a later restore can still succeed. The player keeps an uncapped
+                // framerate until then, which is visible but harmless - hence warn, not error.
+                Core.Log?.Warning("[snitch] could not restore the framerate cap: " + e.Message);
+            }
         }
     }
 }

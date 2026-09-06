@@ -50,6 +50,14 @@ namespace Snitch.Sections
 
         private static readonly double TickToMs = 1000.0 / Stopwatch.Frequency;
 
+        // ----- root-level (non-overlapping) accounting -----
+        // Summing every label would double-count nesting: "MyMod.OnUpdate" already contains "MyMod.Pathfinding".
+        // These three track only the OUTERMOST open span, so the total is wall time spent inside any section with
+        // each slice counted once. That total is the attributed half of the unattributed line.
+        private static int _globalDepth;
+        private static long _rootStartTs;
+        private static long _rootTicksThisFrame;
+
         /// <summary>Intern a label and get its fast int handle (creates the accumulator on first use).</summary>
         internal static int GetId(string label)
         {
@@ -67,19 +75,40 @@ namespace Snitch.Sections
         {
             if ((uint)id >= (uint)_all.Count) return;
             Accumulator a = _all[id];
-            if (a.Depth++ == 0) a.StartTs = Stopwatch.GetTimestamp();   // only the outermost entry starts the clock
+            long now = 0L;
+            bool haveNow = false;
+            if (a.Depth++ == 0)                    // only the outermost entry starts the label clock
+            {
+                now = Stopwatch.GetTimestamp();
+                haveNow = true;
+                a.StartTs = now;
+            }
+            if (_globalDepth++ == 0)               // ... and the outermost section of all starts the root clock
+            {
+                if (!haveNow) now = Stopwatch.GetTimestamp();
+                _rootStartTs = now;
+            }
         }
 
         internal static void End(int id)
         {
             if ((uint)id >= (uint)_all.Count) return;
             Accumulator a = _all[id];
-            if (--a.Depth == 0)
+            bool closesLabel = --a.Depth == 0;
+            bool closesRoot = _globalDepth > 0 && --_globalDepth == 0;   // an unbalanced End must not open a negative root span
+            if (!closesLabel && !closesRoot)
             {
-                a.TicksThisFrame += Stopwatch.GetTimestamp() - a.StartTs;
+                if (a.Depth < 0) a.Depth = 0;   // defensive: unbalanced End
+                return;
+            }
+            long now = Stopwatch.GetTimestamp();
+            if (closesLabel)
+            {
+                a.TicksThisFrame += now - a.StartTs;
                 a.CallsThisFrame++;
             }
-            else if (a.Depth < 0) a.Depth = 0;   // defensive: unbalanced End
+            else if (a.Depth < 0) a.Depth = 0;
+            if (closesRoot) _rootTicksThisFrame += now - _rootStartTs;
         }
 
         internal static void Begin(string label) => Begin(GetId(label));
@@ -90,8 +119,10 @@ namespace Snitch.Sections
         // ----- frame boundary -----
 
         /// <summary>Push each label's per-frame totals into its rolling window, then reset. Self-healing: a leaked
-        /// Depth (e.g. an original that threw past a non-finalizer patch) is reset every frame.</summary>
-        internal static void Flush()
+        /// Depth (e.g. an original that threw past a non-finalizer patch) is reset every frame. Returns the frame's
+        /// root-level total in ms - wall time spent inside ANY section, nesting counted once - which is the
+        /// attributed half of the unattributed line.</summary>
+        internal static double Flush()
         {
             for (int i = 0; i < _all.Count; i++)
             {
@@ -104,6 +135,10 @@ namespace Snitch.Sections
                 a.CallsThisFrame = 0;
                 a.Depth = 0;
             }
+            double rootMs = _rootTicksThisFrame * TickToMs;
+            _rootTicksThisFrame = 0;
+            _globalDepth = 0;
+            return rootMs;
         }
 
         internal static void Reset()
@@ -113,6 +148,8 @@ namespace Snitch.Sections
                 Accumulator a = _all[i];
                 a.Head = 0; a.Count = 0; a.TicksThisFrame = 0; a.CallsThisFrame = 0; a.Depth = 0;
             }
+            _globalDepth = 0;
+            _rootTicksThisFrame = 0;
         }
 
         // ----- reporting -----

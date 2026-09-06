@@ -20,6 +20,8 @@ namespace Snitch.Config
         private static MelonPreferences_Entry<bool> _enableInMp;
         private static MelonPreferences_Entry<bool> _autoStart;
         private static MelonPreferences_Entry<bool> _autoInstrument;
+        private static MelonPreferences_Entry<bool> _wrapModPatches;
+        private static MelonPreferences_Entry<float> _spikeFactor;
         private static MelonPreferences_Entry<float> _pollHz;
 
         // server
@@ -58,6 +60,17 @@ namespace Snitch.Config
                 "ON (default): while sampling, every other loaded mod's per-frame methods (OnUpdate etc.) are timed " +
                 "automatically and shown as '<Mod>.OnUpdate' - so any mod's frame cost appears with no code on its side. " +
                 "Turn OFF to only show sections that mods (or Snitch's vanilla probes) register explicitly.");
+            _wrapModPatches = Create("WrapModPatches", false, "Also time other mods' Harmony patches",
+                "OFF (default): only lifecycle methods and registered sections are timed. ON: while sampling, every " +
+                "other mod's Harmony prefix/postfix/finalizer is wrapped and timed too - the usual hiding place for " +
+                "per-frame cost that no OnUpdate explains. It is off by default because wrapping hundreds of patch " +
+                "methods costs measurable time of its own, and because a Harmony patch that fails leaves its target " +
+                "broken for every later patcher. Turn it on from the console with 'snitch patches on'.");
+            _spikeFactor = Create("SpikeFactor", 1.5f, "Bad-frame threshold (x median)",
+                "How much worse than the window median a frame has to be before it counts as a spike in the " +
+                "unattributed report. 1.5 means 50 percent over the median. Lower catches more frames and more " +
+                "noise; higher only the worst stutters. Clamped 1.1-5.",
+                new MelonLoader.Preferences.ValueRange<float>(1.1f, 5f));
             _pollHz = Create("PollHz", 4f, "Provider poll rate (Hz)",
                 "How often the entity STATE providers and counters are sampled (the expensive part). 4 Hz is plenty " +
                 "for distributions and keeps the profiler's own cost flat. Frame-time itself is always sampled every frame. Clamped 1-30.",
@@ -98,6 +111,8 @@ namespace Snitch.Config
         internal static bool EnableInMultiplayer => _enableInMp?.Value ?? true;
         internal static bool AutoStart => _autoStart?.Value ?? false;
         internal static bool AutoInstrument => _autoInstrument?.Value ?? true;
+        internal static bool WrapModPatches => _wrapModPatches?.Value ?? false;
+        internal static float SpikeFactor => Mathf.Clamp(_spikeFactor?.Value ?? 1.5f, 1.1f, 5f);
         internal static float PollHz => Mathf.Clamp(_pollHz?.Value ?? 4f, 1f, 30f);
 
         internal static bool ServerEnabled => _serverEnabled?.Value ?? true;

@@ -6,6 +6,7 @@ using System.Text;
 using Snitch.Engine;
 using Snitch.Registries;
 using Snitch.Sections;
+using Snitch.Vanilla;
 
 namespace Snitch.Reporting
 {
@@ -63,6 +64,49 @@ namespace Snitch.Reporting
             sb.AppendLine($"| {F(f.MeanMs)} | {F(f.MedianMs)} | {F(f.P95Ms)} | {F(f.P99Ms)} | {F(f.MinMs)} | {F(f.MaxMs)} | {F(f.MeanFps)} | {F(f.MinFps)} | {F(f.Gc0Per1000)} | {F(f.Gc1Per1000)} | {f.Samples} |");
             sb.AppendLine();
 
+            sb.AppendLine("## Unattributed frame time");
+            sb.AppendLine();
+            AttributionStats a = SnitchCore.LatestAttribution;
+            if (a.Samples == 0) sb.AppendLine("_no samples yet_");
+            else
+            {
+                sb.AppendLine("| frame mean | sections | unattributed | % of frame | worst frame | bad frames | their excess | unexplained | % unexplained |");
+                sb.AppendLine("|---|---|---|---|---|---|---|---|---|");
+                sb.AppendLine($"| {F(a.FrameMeanMs)} | {F(a.AttributedMeanMs)} | {F(a.UnattributedMeanMs)} | {F(a.UnattributedPct)} | "
+                            + $"{F(a.MaxUnattributedMs)} | {a.SpikeFrames} of {a.Samples} (>{F(a.SpikeFactor)}x median) | "
+                            + $"{F(a.SpikeMeanExcessMs)} | {F(a.SpikeMeanUnexplainedMs)} | {F(a.SpikeUnexplainedPct)} |");
+                sb.AppendLine();
+                sb.AppendLine("Unattributed is frame time that ran inside no section at all. Most of it is the game itself. "
+                            + "The number that points at a mod is the unexplained share of the bad frames: when a frame is far "
+                            + "worse than the median and the sections did not grow with it, that cost is running somewhere "
+                            + "nothing here wraps.");
+                if (a.PointsAtHiddenWork && !Snitch.Vanilla.PatchInstrument.Enabled)
+                    sb.AppendLine().AppendLine("**The bad frames are not explained by any section, and Harmony patch timing is OFF.** "
+                            + "Run `snitch patches on` and take this report again - a mod's per-frame work does not have to live "
+                            + "in OnUpdate, and a postfix on a vanilla method belongs to no section here.");
+            }
+            sb.AppendLine();
+
+            sb.AppendLine("## Wrapped Harmony patches");
+            sb.AppendLine();
+            List<WrappedPatch> patches = Snitch.Vanilla.PatchInstrument.All();
+            if (patches.Count == 0)
+                sb.AppendLine("_none - other mods' Harmony patches are not timed (`snitch patches on`)_");
+            else
+            {
+                sb.AppendLine("| section | mod | kinds | patched methods |");
+                sb.AppendLine("|---|---|---|---|");
+                foreach (WrappedPatch w in patches)
+                {
+                    string targets = string.Join(", ", w.Targets);
+                    if (w.TargetCount > w.Targets.Count) targets += $", +{w.TargetCount - w.Targets.Count} more";
+                    sb.AppendLine($"| `{w.Label}` | {w.Owner} | {string.Join("+", w.Kinds)} | {targets} |");
+                }
+                sb.AppendLine();
+                sb.AppendLine("Their cost is in the sections table above. The numbers include the wrapper's own overhead.");
+            }
+            sb.AppendLine();
+
             sb.AppendLine("## Sections (by ms/frame)");
             sb.AppendLine();
             var rows = SnitchCore.LatestSections;
@@ -106,7 +150,8 @@ namespace Snitch.Reporting
             sb.AppendLine();
             sb.AppendLine("---");
             sb.AppendLine("_ProfilerRecorder engine counters are inert in this IL2CPP build; frame-time + GC are the truth. " +
-                "Vanilla section costs are self-measured (only wrapped methods) and include a small patch overhead._");
+                "Vanilla section costs are self-measured (only wrapped methods) and include a small patch overhead. " +
+                "Everything not inside a wrapped section is reported as unattributed rather than left out._");
             return sb.ToString();
         }
 

@@ -29,12 +29,27 @@ namespace Snitch.Server
 
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+        /// <summary>The running build's version, read from the assembly rather than typed here. The literal that
+        /// used to sit in these two payloads said 1.5.1 for four releases: a hand-kept version string in a place
+        /// nobody looks at drifts, and the dashboard was showing it to the user as fact.</summary>
+        private static readonly string ModVersion = ReadVersion();
+
+        private static string ReadVersion()
+        {
+            try { return Core.Instance?.MelonAssembly?.Assembly?.GetName()?.Version?.ToString(3) ?? "0.0.0"; }
+            catch (Exception e)
+            {
+                Core.Log?.Warning("[snitch] could not read the mod version for the wire payload: " + e.Message);
+                return "0.0.0";
+            }
+        }
+
         internal static string BuildSnapshot(int frame, string scene)
         {
             FrameStats f = SnitchCore.LatestFrame;
             var sb = new StringBuilder(8192);
             sb.Append("{\"type\":\"snapshot\",\"v\":").Append(Version).Append(",\"t\":").Append(frame).Append(',');
-            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"1.5.1\",\"scene\":\"").Append(Esc(scene))
+            sb.Append("\"meta\":{\"mod\":\"Snitch\",\"version\":\"" + Esc(ModVersion) + "\",\"scene\":\"").Append(Esc(scene))
               .Append("\",\"active\":").Append(SnitchCore.Active ? "true" : "false")
               .Append(",\"caps\":").Append(CapsArray).Append("},");
 
@@ -203,7 +218,7 @@ namespace Snitch.Server
 
         internal static string BuildHealth(int frame, string scene, string lanJson = null)
         {
-            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"1.5.1\",\"caps\":" + CapsArray
+            string body = "{\"ok\":true,\"mod\":\"Snitch\",\"version\":\"" + Esc(ModVersion) + "\",\"caps\":" + CapsArray
                  + ",\"active\":" + (SnitchCore.Active ? "true" : "false")
                  + ",\"scene\":\"" + Esc(scene) + "\",\"frame\":" + frame;
             if (!string.IsNullOrEmpty(lanJson)) body += "," + lanJson;

@@ -13,6 +13,7 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
+
 [![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_Qn2K8eusIqfg1U7RD723mLIq/badge.svg)](https://mlvscan.com/attestations/att_Qn2K8eusIqfg1U7RD723mLIq)
 
 **[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Support](https://support.doodesch.de/snitch)**

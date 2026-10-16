@@ -15,7 +15,7 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
 [![Polyfill](https://polyfill.doomods.com/badge/snitch.svg)](https://polyfill.doomods.com/mod/snitch)
 
-[![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_Qn2K8eusIqfg1U7RD723mLIq/badge.svg)](https://mlvscan.com/attestations/att_Qn2K8eusIqfg1U7RD723mLIq)
+[![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_Zmy0Rmd81vxzqdnzIqobzAEG/badge.svg)](https://mlvscan.com/attestations/att_Zmy0Rmd81vxzqdnzIqobzAEG)
 
 **[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Support](https://support.doodesch.de/snitch)**
 

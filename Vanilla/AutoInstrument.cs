@@ -45,7 +45,11 @@ namespace Snitch.Vanilla
         {
             if (_discovered) return;
             _discovered = true;
-            int found = 0;
+            int found = 0, selfRegistered = 0;
+
+            // Bind every mod's shim first: registrations queued before Snitch loaded are applied now, and the probes
+            // called below then register straight into the host instead of into a queue.
+            Snitch.Bridge.ShimBinder.BindAll();
             try
             {
                 IEnumerable<MelonMod> mods = RegisteredMods();
@@ -60,12 +64,16 @@ namespace Snitch.Vanilla
                         MethodInfo reg = probe?.GetMethod("Register",
                             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, Type.EmptyTypes, null);
                         if (reg == null) continue;
+                        // A mod that called Profiler.AutoRegister() has run its probe already; a second run would
+                        // register every control twice.
+                        if (Snitch.Bridge.ShimBinder.ProbeAlreadyRan(asm)) { selfRegistered++; continue; }
                         reg.Invoke(null, null);
+                        Snitch.Bridge.ShimBinder.MarkProbeRan(asm);
                         found++;
                     }
                     catch (Exception e) { Core.Log?.Warning($"[snitch] probe discovery on {ModName(mod)} failed: {e.Message}"); }
                 }
-                if (found > 0) Core.Log?.Msg($"[snitch] discovered + registered {found} mod probe(s).");
+                Core.Log?.Msg($"[snitch] discovered + registered {found} mod probe(s), {selfRegistered} registered themselves.");
             }
             catch (Exception e) { Core.Log?.Warning("[snitch] probe discovery failed: " + e.Message); }
         }

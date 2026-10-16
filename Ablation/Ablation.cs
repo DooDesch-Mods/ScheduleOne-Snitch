@@ -33,33 +33,67 @@ namespace Snitch.Ablation
         {
             if (_builtins) return;
             _builtins = true;
-            // built-in NPC lever: pause/resume all NPC movement (the dominant per-NPC sim cost). Host-only - it
-            // mutates simulation. Reversible via the game's own ResumeMovement. Disable Siesta for a clean read.
+            // built-in NPC lever: halt all NPC movement (the dominant per-NPC sim cost). Host-only - it mutates
+            // simulation. The game has no pause call since 0.4.7, so the lever disables each NPCMovement and stops its
+            // NavMeshAgent, and Restore undoes exactly the NPCs it halted. Disable Siesta for a clean read.
             Register(new AblationLever
             {
                 Name = "npc",
                 CanApply = () => Net.IsAuthoritative(),
-                Apply = () => ForEachNpcMovement(mv => mv.PauseMovement()),
-                Restore = () => ForEachNpcMovement(mv => mv.ResumeMovement()),
+                Apply = HaltNpcMovement,
+                Restore = ResumeNpcMovement,
             });
         }
 
-        private static void ForEachNpcMovement(Action<NPCMovement> act)
+        private static readonly List<NPCMovement> _halted = new List<NPCMovement>();
+
+        private static void HaltNpcMovement()
         {
+            _halted.Clear();
+            int failed = 0;
+            string firstError = null;
             try
             {
                 var reg = NPCManager.NPCRegistry;
-                if (reg == null) return;
+                if (reg == null) { Core.Log?.Warning("[snitch] ablation npc: NPC registry is not available, nothing halted."); return; }
                 int n = reg.Count;
                 for (int i = 0; i < n; i++)
                 {
-                    NPC npc;
-                    try { npc = reg[i]; } catch { continue; }
-                    if (npc == null) continue;
-                    try { NPCMovement mv = npc.Movement; if (mv != null) act(mv); } catch { }
+                    try
+                    {
+                        NPC npc = reg[i];
+                        NPCMovement mv = npc != null ? npc.Movement : null;
+                        if (mv == null || !mv.enabled) continue;
+                        var agent = mv._agent;
+                        if (agent != null && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
+                        mv.enabled = false;
+                        _halted.Add(mv);
+                    }
+                    catch (Exception e) { failed++; if (firstError == null) firstError = e.Message; }
                 }
             }
-            catch { }
+            catch (Exception e) { Core.Log?.Error("[snitch] ablation npc: halting failed: " + e.Message); }
+            Core.Log?.Msg($"[snitch] ablation npc: halted {_halted.Count} NPC(s)" + (failed > 0 ? $", {failed} failed, first: {firstError}" : "."));
+        }
+
+        private static void ResumeNpcMovement()
+        {
+            int resumed = 0, failed = 0;
+            string firstError = null;
+            foreach (NPCMovement mv in _halted)
+            {
+                try
+                {
+                    if (mv == null) continue;   // destroyed while halted
+                    mv.enabled = true;
+                    var agent = mv._agent;
+                    if (agent != null && agent.enabled && agent.isOnNavMesh) agent.isStopped = false;
+                    resumed++;
+                }
+                catch (Exception e) { failed++; if (firstError == null) firstError = e.Message; }
+            }
+            _halted.Clear();
+            Core.Log?.Msg($"[snitch] ablation npc: resumed {resumed} NPC(s)" + (failed > 0 ? $", {failed} failed, first: {firstError}" : "."));
         }
     }
 

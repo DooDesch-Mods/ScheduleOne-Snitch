@@ -29,7 +29,11 @@ namespace Snitch.Api
         // bound bridge delegates (null until the host is found)
         private static bool _bound;
         private static bool _autoDone;
-        private static int _probeAttempts;
+        private static bool _autoRequested;
+        private static bool _probedOnce;
+        private static int _lastProbeTick;
+        private static string _lastBindError;
+        private const int ProbeIntervalMs = 1000;
         private static readonly List<Action> _pending = new List<Action>();
         private static Func<bool> _isEnabled;
         private static Func<string, int> _beginScope;
@@ -229,14 +233,15 @@ namespace Snitch.Api
         /// deferred until the host binds, and is a permanent no-op if Snitch is not installed.</summary>
         public static void AutoRegister()
         {
+            _autoRequested = true;   // the bind runs it if the host is not up yet (load-order-proof, both directions)
             EnsureBound();
-            if (_bound) RunAutoRegister();   // else: the bind flush will run it (load-order-proof, both directions)
+            if (_bound) RunAutoRegister();
         }
 
         private static void RunAutoRegister()
         {
             if (_autoDone) return;
-            _autoDone = true;   // latch before invoking so a throw can't loop
+            _autoDone = true;   // latch before invoking so a throw can't loop; the host reads it to skip this mod's probe
             try
             {
                 Assembly self = typeof(Profiler).Assembly;   // only this mod's assembly - single, fast, no AppDomain scan
@@ -245,7 +250,13 @@ namespace Snitch.Api
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, Type.EmptyTypes, null);
                 reg?.Invoke(null, null);
             }
-            catch { /* a mod's probe threw -> stays a no-op, never crashes the mod */ }
+            catch (Exception e)
+            {
+                // A probe that throws must not crash the mod; it goes to Snitch's log instead.
+                Exception inner = e is TargetInvocationException tie && tie.InnerException != null ? tie.InnerException : e;
+                _log?.Invoke("snitch", (int)LogLevel.Error,
+                    $"SnitchProbe.Register in {typeof(Profiler).Assembly.GetName().Name} threw: {inner.GetType().Name}: {inner.Message}");
+            }
         }
 
         private static Type FindByLeafName(Assembly asm, string leaf)
@@ -265,16 +276,32 @@ namespace Snitch.Api
         private static void EnsureBound()
         {
             if (_bound) return;   // bound once, never probe again (fast path)
+
+            // Probed at most once a second, never every call: a mod that uses the API every frame while Snitch is
+            // absent must not pay for the search each time. A time gate rather than a call count, because a mod that
+            // registers a handful of things before Snitch loads may never make enough calls to reach a count.
+            int now = Environment.TickCount;
+            if (_probedOnce && unchecked(now - _lastProbeTick) < ProbeIntervalMs) return;
+            _probedOnce = true;
+            _lastProbeTick = now;
+            TryBind();
+        }
+
+        /// <summary>
+        /// Called by the Snitch host through reflection while it scans the loaded mods, so registrations queued before
+        /// Snitch loaded are applied even when this mod makes no further API call. Returns how many queued
+        /// registrations it applied, or -1 when the bind failed (the reason is in <c>_lastBindError</c>).
+        /// </summary>
+        private static int BindNow() => _bound ? 0 : TryBind();
+
+        private static int TryBind()
+        {
             try
             {
-                // Probed occasionally, never every call: a mod that uses the API every frame while Snitch is
-                // absent must not pay for the search each time.
-                if ((_probeAttempts++ % 30) != 0) return;
-
                 Type t = FindBridge();
-                if (t == null) return;   // host not present yet - probed again later (load-order proof)
+                if (t == null) { _lastBindError = "Snitch is not loaded"; return -1; }   // probed again later
                 object abi = t.GetField("AbiVersion", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
-                if (abi is int v && v < 1) return;
+                if (abi is int v && v < 1) { _lastBindError = "host ABI version " + v; return -1; }
 
                 _isEnabled = Get<Func<bool>>(t, "IsEnabled");
                 _beginScope = Get<Func<string, int>>(t, "BeginScope");
@@ -295,14 +322,32 @@ namespace Snitch.Api
                 _bindPanelLog = Get<Action<string>>(t, "BindPanelLog");
                 _log = Get<Action<string, int, string>>(t, "Log");
 
-                if (_isEnabled == null) return;   // partial table - try again next call
+                if (_isEnabled == null) { _lastBindError = "host bridge is not filled in yet"; return -1; }   // retried later
                 _bound = true;
+                _lastBindError = null;
 
                 // flush any registrations made before the host was up
-                for (int i = 0; i < _pending.Count; i++) { try { _pending[i](); } catch { } }
+                int applied = 0, failed = 0;
+                string firstError = null;
+                for (int i = 0; i < _pending.Count; i++)
+                {
+                    try { _pending[i](); applied++; }
+                    catch (Exception e) { failed++; if (firstError == null) firstError = e.GetType().Name + ": " + e.Message; }
+                }
                 _pending.Clear();
+                if (failed > 0)
+                    _log?.Invoke("snitch", (int)LogLevel.Error,
+                        $"{failed} queued registration(s) from {typeof(Profiler).Assembly.GetName().Name} threw on bind, first: {firstError}");
+
+                if (_autoRequested) RunAutoRegister();
+                return applied;
             }
-            catch { /* any failure -> stays a no-op, retries next call */ }
+            catch (Exception e)
+            {
+                // Nothing to log to before the host is bound; the host reads this when it binds the shim itself.
+                _lastBindError = e.GetType().Name + ": " + e.Message;
+                return -1;
+            }
         }
 
         private static T Get<T>(Type t, string field) where T : class

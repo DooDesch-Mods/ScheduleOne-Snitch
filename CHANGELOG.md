@@ -2,6 +2,22 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.7.1] - 2026-10-16
+
+### Fixed
+
+- Panels, counters and log lines a mod registers before Snitch loads now show up. With an early
+  `Profiler.AutoRegister()` they stayed queued for good.
+- Mods built against the 1.7.0 `Snitch.Api` get that fix without a rebuild: Snitch binds their copy of the shim
+  itself.
+- The `Vanilla.NPCs` and `Vanilla.Trash` states work on game 0.4.7f12 again. Both threw "Method not found".
+- `snitch ablate npc` works on 0.4.7f12 again. The game removed the pause call it used.
+
+### Changed
+
+- `Vanilla.NPCs` counts "can't move" (ragdolled, in a building or in a vehicle) instead of "paused", which the
+  game no longer has.
+
 ## [1.7.0] - 2026-09-06
 
 ### Added

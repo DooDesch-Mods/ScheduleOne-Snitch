@@ -100,7 +100,7 @@
   <!-- The Hotline framework's modder shim is VENDORED as a single dropped-in file at Compat/HotlineApi.cs (the
        droppable single-file form of Hotline.Api). Snitch forwards its per-mod panels to the Hotline in-game overlay
        through it (a no-op when Hotline is not installed). It is part of Snitch's own source, so it compiles on CI
-       with no sibling/Workspace path. Re-vendor from ../Hotline.Api/Hotline.cs only if the Hotline ABI changes. -->
+       with no sibling/Workspace path. Re-vendor from ../Hotline/Hotline.Api/Hotline.cs only if the Hotline ABI changes. -->
 
   <!-- Mod loader references (both backends) -->
   <ItemGroup>

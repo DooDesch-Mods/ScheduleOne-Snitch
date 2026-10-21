@@ -172,4 +172,4 @@ Built by DooDesch on [S1API](https://github.com/ifBars/S1API) by ifBars.
 
 ## License
 
-MIT - see [LICENSE.md](LICENSE.md).
+DooDesch API License - build on the API, do not copy the code. See [LICENSE.md](LICENSE.md).

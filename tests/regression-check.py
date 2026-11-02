@@ -88,6 +88,11 @@ def main():
     check("log has Snitch lines (grep works)", code == 0 and "[snitch]" in log.lower(), f"{len(log.splitlines())} lines")
     check("no [Snitch] errors or exceptions in this session's log", not bad, "\n".join(bad[-5:]))
 
+    code, sl = s1(slot, "log", "-n", "50000", "--grep", "[overlay] Sideload")
+    sl_lines = [l for l in sl.splitlines() if re.search(r"\[overlay\] Sideload \S+ (is older than 1\.36\.1|ok \(needs 1\.36\.1\+\))", l)]
+    check("startup log has one Sideload version line (older-warning or ok)", code == 0 and len(sl_lines) == 1,
+          "\n".join(sl_lines) or sl)
+
     failed = results.count(False)
     print(f"{len(results) - failed}/{len(results)} PASS")
     return 1 if failed else 0

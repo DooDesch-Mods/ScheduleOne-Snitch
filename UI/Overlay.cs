@@ -53,6 +53,59 @@ namespace Snitch.UI
 
         internal static OverlayMode Mode => _mode;
 
+        // Window drags (pointer capture), @font-face and the surface repaint fix first shipped together in this release.
+        private const string RequiredSideload = "1.36.1";
+
+        /// <summary>Reads the loaded Sideload version from MelonLoader's registered melons and logs once whether it is
+        /// new enough for the overlay. Informational only: the overlay is not blocked either way. Run after all melons
+        /// have initialised so Sideload is registered.</summary>
+        internal static void CheckSideloadVersion()
+        {
+            string found = null;
+            try
+            {
+                var melons = MelonLoader.MelonBase.RegisteredMelons;
+                if (melons == null)
+                {
+                    Core.Log?.Warning("[overlay] MelonBase.RegisteredMelons returned null, so the Sideload version cannot be checked (needs " + RequiredSideload + "+).");
+                    return;
+                }
+                foreach (MelonLoader.MelonBase melon in melons)
+                {
+                    if (melon == null || !string.Equals(melon.Info?.Name, "Sideload", StringComparison.OrdinalIgnoreCase)) continue;
+                    found = melon.Info.Version;
+                    if (string.IsNullOrEmpty(found)) found = melon.MelonAssembly?.Assembly?.GetName()?.Version?.ToString(3);
+                    break;
+                }
+            }
+            catch (Exception e)
+            {
+                Core.Log?.Warning("[overlay] the Sideload version could not be read (needs " + RequiredSideload + "+) - " + e.Message);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(found))
+            {
+                Core.Log?.Warning("[overlay] no Sideload version could be read from the loaded melons (needs " + RequiredSideload
+                                + "+). If the overlay windows cannot be moved or resized, update Sideload.");
+                return;
+            }
+
+            // Leading digits and dots only, so a suffix such as "-beta" does not break the parse.
+            Match m = Regex.Match(found, @"^\d+(\.\d+){0,3}");
+            if (!m.Success || !Version.TryParse(m.Value.Contains(".") ? m.Value : m.Value + ".0", out Version have))
+            {
+                Core.Log?.Warning("[overlay] Sideload version '" + found + "' is not readable as a version (needs " + RequiredSideload + "+).");
+                return;
+            }
+
+            if (have < Version.Parse(RequiredSideload))
+                Core.Log?.Warning("[overlay] Sideload " + found + " is older than " + RequiredSideload
+                                + " - overlay windows cannot be moved or resized and may render offset. Update Sideload.");
+            else
+                Core.Log?.Msg("[overlay] Sideload " + found + " ok (needs " + RequiredSideload + "+).");
+        }
+
         // ----- mode -----
 
         /// <summary>Hidden -> compact -> expanded -> hidden, the order the overlay key walks.</summary>
@@ -81,7 +134,7 @@ namespace Snitch.UI
             if (!Surfaces.Available)
             {
                 Core.Log?.Error("[overlay] Sideload is not available, so the overlay cannot be drawn. "
-                              + "Install Sideload 1.13 or newer, or use 'snitch dashboard' for the web view.");
+                              + "Install Sideload " + RequiredSideload + " or newer, or use 'snitch dashboard' for the web view.");
                 return false;
             }
 

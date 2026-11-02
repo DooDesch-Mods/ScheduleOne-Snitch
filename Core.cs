@@ -64,6 +64,12 @@ namespace Snitch
                     + " - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
+        // Every melon is registered by now, so Sideload is visible to the version check.
+        public override void OnLateInitializeMelon()
+        {
+            Snitch.UI.Overlay.CheckSideloadVersion();
+        }
+
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             _inWorld = sceneName == "Main";

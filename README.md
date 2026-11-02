@@ -54,14 +54,14 @@
 | Schedule I | IL2CPP build |
 | MelonLoader | 0.7.x |
 | S1API | `ifBars-S1API_Forked` |
-| [Sideload](https://github.com/DooDesch-Mods/ScheduleOne-Sideload) | Draws the in-game overlay (auto-installed as a dependency). |
+| [Sideload](https://github.com/DooDesch-Mods/ScheduleOne-Sideload) 1.36.1+ | Draws the in-game overlay (auto-installed as a dependency). |
 
 ## Installation
 
 **Mod manager (Thunderstore / r2modman):** install Snitch; the dependencies (MelonLoader, S1API, Sideload)
 pull in automatically.
 
-**Manual:** install MelonLoader 0.7.x, S1API and Sideload, then drop `Snitch.dll` into the game's `Mods/` folder.
+**Manual:** install MelonLoader 0.7.x, S1API and Sideload 1.36.1 or newer, then drop `Snitch.dll` into the game's `Mods/` folder.
 
 ## Configuration
 

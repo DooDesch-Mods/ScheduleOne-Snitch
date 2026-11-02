@@ -47,7 +47,7 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 |---|---|
 | MelonLoader | 0.7.x (IL2CPP) |
 | S1API | `ifBars-S1API_Forked` |
-| Sideload | Draws the in-game overlay (auto-installed as a dependency). |
+| Sideload 1.36.1+ | Draws the in-game overlay (auto-installed as a dependency). |
 
 ## Use it
 

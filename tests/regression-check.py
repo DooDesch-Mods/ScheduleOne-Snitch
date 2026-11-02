@@ -84,7 +84,9 @@ def main():
           code == 200 or (code == 401 and not a.token), f"{code} {body[:80]}")
 
     code, log = s1(slot, "log", "-n", "50000", "--grep", "snitch")
-    bad = [l for l in log.splitlines() if re.search(r"(?i)\[snitch\]", l) and re.search(r"(?i)error|exception", l)]
+    # A port the overlay check took on purpose (snitch servertest) is not a fault of the session.
+    bad = [l for l in log.splitlines() if re.search(r"(?i)\[snitch\]", l) and re.search(r"(?i)error|exception", l)
+           and not re.search(r"data server failed to start on (?!" + str(port) + r"\b)\d+", l)]
     check("log has Snitch lines (grep works)", code == 0 and "[snitch]" in log.lower(), f"{len(log.splitlines())} lines")
     check("no [Snitch] errors or exceptions in this session's log", not bad, "\n".join(bad[-5:]))
 

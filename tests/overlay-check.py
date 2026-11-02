@@ -156,6 +156,22 @@ def game_window(root):
     return found[0][1:] if found and found[0][0] > 0 else None
 
 
+def bring_front(u, hwnd, tries=4):
+    """Brings the window forward and returns the foreground window. A tap of Alt lets this process take the
+    foreground (Windows foreground lock); another application may take it back, so it retries."""
+    fg = u.GetForegroundWindow()
+    for _ in range(tries):
+        if fg == hwnd:
+            break
+        u.keybd_event(0x12, 0, 0, 0)
+        u.ShowWindow(hwnd, 9)
+        u.SetForegroundWindow(hwnd)
+        u.keybd_event(0x12, 0, 2, 0)
+        time.sleep(0.5)
+        fg = u.GetForegroundWindow()
+    return fg
+
+
 def real_click(root, ux, uy, sw, sh, hold_s=0.2):
     """Clicks at Unity screen point (ux, uy) (origin bottom left) of the game under root. Returns (ok, detail)."""
     ctypes, wintypes, u, k = _win32()
@@ -163,12 +179,7 @@ def real_click(root, ux, uy, sw, sh, hold_s=0.2):
     if not win:
         return False, "no game window with an exe under " + root
     hwnd, cw, ch, pid = win
-    # Bring the game forward. A tap of Alt lets this process take the foreground (Windows foreground lock).
-    u.keybd_event(0x12, 0, 0, 0)
-    u.SetForegroundWindow(hwnd)
-    u.keybd_event(0x12, 0, 2, 0)
-    time.sleep(0.4)
-    fg = u.GetForegroundWindow()
+    fg = bring_front(u, hwnd)
     if fg != hwnd:
         return False, f"the game window is not in the foreground (fg={fg} game={hwnd} pid={pid})"
     pt = wintypes.POINT(int(round(ux * cw / sw)), int(round(ch - uy * ch / sh)))
@@ -183,6 +194,358 @@ def real_click(root, ux, uy, sw, sh, hold_s=0.2):
     u.mouse_event(0x0004, 0, 0, 0, 0)  # left up
     time.sleep(0.6)
     return True, f"screen {pt.x},{pt.y} client {cw}x{ch} unity {sw}x{sh} pid {pid}"
+
+
+def focus_game(root):
+    """Brings the game of this slot to the foreground. Returns (handles, error)."""
+    ctypes, wintypes, u, k = _win32()
+    win = game_window(root)
+    if not win:
+        return None, "no game window with an exe under " + root
+    hwnd, cw, ch, pid = win
+    if bring_front(u, hwnd) != hwnd:
+        return None, f"the game window is not in the foreground (pid={pid})"
+    return (ctypes, wintypes, u, hwnd, cw, ch), ""
+
+
+def cursor_to(g, fx, fy):
+    """Moves the Windows cursor to a fraction of the game's client area (y from the top)."""
+    ctypes, wintypes, u, hwnd, cw, ch = g
+    pt = wintypes.POINT(int(cw * fx), int(ch * fy))
+    u.ClientToScreen(hwnd, ctypes.byref(pt))
+    u.SetCursorPos(pt.x, pt.y)
+
+
+def mouse_sweep(g, rounds=6, step=90):
+    """Relative mouse motion in both axes, the raw input that turns the camera when look is on."""
+    u = g[2]
+    for _ in range(rounds):
+        for dx, dy in ((step, 0), (0, step // 2), (-step, 0), (0, -step // 2)):
+            for _ in range(5):
+                u.mouse_event(0x0001, dx // 5, dy // 5, 0, 0)
+                time.sleep(0.02)
+
+
+def key_tap(g, vk):
+    u = g[2]
+    u.keybd_event(vk, 0, 0, 0)
+    time.sleep(0.08)
+    u.keybd_event(vk, 0, 2, 0)
+    time.sleep(0.5)
+
+
+def view(slot):
+    """(position, yaw, pitch) of the player camera from the bridge's 'where'."""
+    import json
+    import math
+    code, out = s1(slot, "where")
+    try:
+        d = json.loads(out[out.index("{"):out.rindex("}") + 1])
+        f = d["camera"]["forward"]
+        return tuple(d["position"]), math.degrees(math.atan2(f[0], f[2])), math.degrees(math.asin(max(-1.0, min(1.0, f[1]))))
+    except (ValueError, KeyError, TypeError) as e:
+        return None, 0.0, 0.0
+
+
+def turned(a, b):
+    """Degrees between two (yaw, pitch) pairs."""
+    dy = abs((a[0] - b[0] + 180.0) % 360.0 - 180.0)
+    return max(dy, abs(a[1] - b[1]))
+
+
+def where(slot, ident):
+    """(x, y, w, h, screenW, screenH) of a page element from 'snitch where', or None."""
+    ok, out = run(slot, "snitch where " + ident, r"where " + ident + r" x=|no element|no size|not mounted|not expanded|unknown")
+    m = re.search(r"where " + ident + r" x=(-?\d+) y=(-?\d+) w=(\d+) h=(\d+) screen=(\d+)x(\d+)", out)
+    if not m or int(m.group(3)) <= 0 or int(m.group(4)) <= 0:
+        return None
+    return tuple(int(v) for v in m.groups())
+
+
+def shot_image(slot):
+    from PIL import Image
+    code, out = s1(slot, "shot")
+    path = out.strip().splitlines()[-1] if out.strip() else ""
+    if code != 0 or not os.path.exists(path):
+        return None, path or out
+    return Image.open(path).convert("RGB"), path
+
+
+def region(img, box, sw, sh):
+    """Pixels of a Unity-screen box (centre x, y from the bottom, w, h) in a screenshot of any scale."""
+    x, y, w, h = box
+    sx, sy = img.width / sw, img.height / sh
+    left, right = int((x - w / 2) * sx), int((x + w / 2) * sx)
+    top, bottom = int((sh - y - h / 2) * sy), int((sh - y + h / 2) * sy)
+    return list(img.crop((left, top, max(left + 1, right), max(top + 1, bottom))).getdata())
+
+
+def input_section(slot, root):
+    """The expanded overlay owns the mouse: the camera stays put, a click on the page does not reach the player,
+    hover paints, Escape closes it, the status line and the phone QR show. Needs the overlay expanded."""
+    g, err = focus_game(root)
+    check("input: game window in the foreground", g is not None, err)
+    if not g:
+        return
+
+    # Camera. Moving the mouse while the overlay is expanded must not turn the player camera.
+    pos0, yaw0, pitch0 = view(slot)
+    cursor_to(g, 0.5, 0.9)
+    mouse_sweep(g)
+    pos1, yaw1, pitch1 = view(slot)
+    check("input: mouse movement over the expanded overlay does not turn the camera",
+          pos0 is not None and turned((yaw0, pitch0), (yaw1, pitch1)) < 0.5,
+          f"yaw {yaw0:.1f}->{yaw1:.1f} pitch {pitch0:.1f}->{pitch1:.1f}")
+
+    # A click on empty desk, away from every window, must not reach the character (no step, no turn).
+    cursor_to(g, 0.5, 0.97)
+    time.sleep(0.2)
+    ctypes, wintypes, u, hwnd, cw, ch = g
+    u.mouse_event(0x0002, 0, 0, 0, 0)
+    time.sleep(0.2)
+    u.mouse_event(0x0004, 0, 0, 0, 0)
+    time.sleep(0.5)
+    pos2, yaw2, pitch2 = view(slot)
+    check("input: a click on the empty overlay leaves position and camera as they were",
+          pos0 is not None and pos2 == pos0 and turned((yaw0, pitch0), (yaw2, pitch2)) < 0.5, f"{pos0} -> {pos2}")
+    code, log = s1(slot, "log", "-n", "300", "--grep", "overlay")
+    check("input: the overlay still holds the cursor after the click",
+          log.rfind("[overlay] cursor freed") > log.rfind("[overlay] cursor restored"), log_tail(log, "cursor"))
+
+    # Hover: the Start/Stop button changes colour under the pointer. The pointer sits over the left padding of the
+    # button, away from its text.
+    run_box = where(slot, "run")
+    if run_box:
+        x, y, w, h, sw, sh = run_box
+        cursor_to(g, 0.5, 0.97)
+        time.sleep(0.4)
+        img0, p0 = shot_image(slot)
+        u.SetCursorPos(0, 0)
+        ux, uy = x - w // 2 + 8, y
+        cursor_to(g, 0.5, 0.97)
+        pt = wintypes.POINT(int(round(ux * cw / sw)), int(round(ch - uy * ch / sh)))
+        u.ClientToScreen(hwnd, ctypes.byref(pt))
+        u.SetCursorPos(pt.x, pt.y)
+        time.sleep(0.6)
+        img1, p1 = shot_image(slot)
+        if img0 is None or img1 is None:
+            check("input: hover screenshots taken", False, str(p0) + " " + str(p1))
+        else:
+            a = region(img0, (ux, uy, 6, 6), sw, sh)
+            b = region(img1, (ux, uy, 6, 6), sw, sh)
+            ma = tuple(sum(c[i] for c in a) // len(a) for i in range(3))
+            mb = tuple(sum(c[i] for c in b) // len(b) for i in range(3))
+            check("input: hovering a button changes its background", sum(abs(p - q) for p, q in zip(ma, mb)) >= 30,
+                  f"rgb {ma} -> {mb} at {ux},{uy} ({p0} / {p1})")
+        cursor_to(g, 0.5, 0.97)
+    else:
+        check("input: 'snitch where run' finds the button for the hover check", False, "")
+
+    # Phone: the button turns the pairing on and a QR appears; again turns it off.
+    phone = where(slot, "phone")
+    if phone:
+        x, y, w, h, sw, sh = phone
+        ok, detail = real_click(root, x, y, sw, sh)
+        check("input: Phone clicked with the real mouse", ok, detail)
+        time.sleep(1.5)
+        code, log = s1(slot, "log", "-n", "400", "--grep", "snitch")
+        check("input: Phone on started the phone remote", "phone remote on" in log, log_tail(log, "phone remote"))
+        qr = where(slot, "qr")
+        check("input: the QR is on screen after Phone on", qr is not None, str(qr))
+        if qr:
+            img, path = shot_image(slot)
+            if img is not None:
+                px = region(img, (qr[0], qr[1], qr[2], qr[3]), qr[4], qr[5])
+                dark = sum(1 for c in px if sum(c) < 150)
+                light = sum(1 for c in px if sum(c) > 650)
+                check("input: the QR area shows a code (dark and light modules)", len(px) > 0 and dark > len(px) * 0.15
+                      and light > len(px) * 0.15, f"dark={dark} light={light} of {len(px)} ({path})")
+        phone = where(slot, "phone")
+        if phone:
+            real_click(root, phone[0], phone[1], phone[4], phone[5])
+            time.sleep(1.5)
+            code, log = s1(slot, "log", "-n", "400", "--grep", "snitch")
+            check("input: Phone again turned the phone remote off", "phone remote off" in log, log_tail(log, "phone remote"))
+            check("input: the QR is gone after Phone off", where(slot, "qr") is None, "")
+    else:
+        check("input: 'snitch where phone' finds the button", False, "")
+
+    # Status line: a data server that cannot bind says so in one line.
+    import socket
+    holder = socket.socket()
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    taken = holder.getsockname()[1]
+    ok, out = run(slot, f"snitch servertest {taken}", r"data server (running|not running)")
+    time.sleep(1.5)
+    note = where(slot, "note")
+    check("input: a taken data-server port shows the status line", "not running" in out and note is not None, out + " " + str(note))
+    holder.close()
+    ok, out = run(slot, "snitch servertest 6140", r"data server (running|not running)")
+    time.sleep(1.5)
+    check("input: the status line is gone once the data server runs", "running on 6140" in out and where(slot, "note") is None, out)
+
+    # Escape closes the overlay in one press.
+    key_tap(g, 0x1B)
+    code, log = s1(slot, "log", "-n", "300", "--grep", "overlay")
+    check("input: Escape closes the expanded overlay", "[overlay] hidden (escape)" in log, log_tail(log, "overlay"))
+    check("input: Escape gave the cursor back", log.rfind("[overlay] cursor restored") > log.rfind("[overlay] cursor freed"), log_tail(log, "cursor"))
+    img, path = shot_image(slot)
+    print("note: screenshot after Escape (look for the pause menu): " + str(path))
+
+    # Control: with the overlay closed the same mouse motion does turn the camera, so the check above could fail.
+    pos3, yaw3, pitch3 = view(slot)
+    mouse_sweep(g)
+    pos4, yaw4, pitch4 = view(slot)
+    check("input: control - the same mouse motion turns the camera once the overlay is closed",
+          turned((yaw3, pitch3), (yaw4, pitch4)) > 5.0, f"yaw {yaw3:.1f}->{yaw4:.1f} pitch {pitch3:.1f}->{pitch4:.1f}")
+    run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
+    time.sleep(1.0)
+
+
+PAINT_ONLY = {"transform", "background", "background-color", "background-image", "border-color", "border-radius",
+              "box-shadow", "outline", "outline-width", "outline-color", "outline-style", "outline-offset"}
+
+
+def inputstate(slot):
+    """canLook, canMove, cursor lock and visibility read back from the game (DEBUG build)."""
+    ok, out = run(slot, "snitch inputstate", r"inputstate freed=")
+    m = re.search(r"inputstate freed=(\w+) canLook=(\w+) canMove=(\w+) cursorLock=(\w+) cursorVisible=(\w+)", out)
+    return dict(zip(("freed", "look", "move", "lock", "visible"), m.groups())) if m else None
+
+
+def decode_qr(slot, label):
+    """Screenshot the QR area and decode it with OpenCV; (text, path) or (None, reason)."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError as e:
+        return None, "opencv missing: " + str(e)
+    qr = where(slot, "qr")
+    if not qr:
+        return None, "no qr element"
+    img, path = shot_image(slot)
+    if img is None:
+        return None, path
+    x, y, w, h, sw, sh = qr
+    sx, sy = img.width / sw, img.height / sh
+    pad = 12
+    left, right = max(0, int((x - w / 2) * sx) - pad), min(img.width, int((x + w / 2) * sx) + pad)
+    top, bottom = max(0, int((sh - y - h / 2) * sy) - pad), min(img.height, int((sh - y + h / 2) * sy) + pad)
+    crop = img.crop((left, top, right, bottom))
+    out = os.environ.get("QR_CROP")
+    if out:
+        crop.save(out)
+    arr = cv2.cvtColor(np.array(crop), cv2.COLOR_RGB2BGR)
+    for scale in (1, 2, 3):
+        big = cv2.resize(arr, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST) if scale > 1 else arr
+        text, _, _ = cv2.QRCodeDetector().detectAndDecode(big)
+        if text:
+            return text, path
+    return None, "not decoded (" + str(path) + ")"
+
+
+def hover_css_check():
+    """Every :hover and :active rule in app.css sets only properties Sideload answers with a repaint."""
+    css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Assets", "overlay", "app.css"))
+    css = open(css_path, encoding="utf-8").read()
+    rules = re.findall(r"([^{}]+):(?:hover|active)\s*\{([^}]*)\}", css)
+    bad = []
+    for sel, body in rules:
+        for prop in re.findall(r"([\w-]+)\s*:", body):
+            if prop.lower() not in PAINT_ONLY:
+                bad.append(sel.strip() + " " + prop)
+    sels = " ".join(s for s, _ in rules)
+    need = [c for c in (".btn", ".segbtn", ".wclose", ".togbox", ".wbar", ".head") if c not in sels]
+    check("hover: .btn .segbtn .wclose .togbox and the title bars have :hover rules", not need, "missing " + ",".join(need))
+    check("hover: hover and active rules use paint-only properties", bool(rules) and not bad, f"{len(rules)} rules, bad={bad}")
+    for state in ("hover", "active"):
+        check(f"hover: .btn has an :{state} rule", re.search(r"\.btn:" + state + r"\s*\{", css) is not None, "")
+
+
+def state_section(slot):
+    """The expanded overlay owns the game's UI state, shows the phone QR and the status line, and Escape closes it.
+    Driven by console commands and the in-process click probe; no OS input. Starts and ends expanded."""
+    hover_css_check()
+
+    ok, out = run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
+    check("state: expanded", ok, out)
+    time.sleep(1.5)
+    code, log = s1(slot, "log", "-n", "400", "--grep", "overlay")
+    check("state: UI state push logged with the expected properties on expand",
+          "UI state pushed: mouse free, crosshair hidden, equipping disabled, inventory disabled, movement locked, "
+          "look locked, blur disabled, HUD visible, compass visible" in log, log_tail(log, "UI state"))
+    st = inputstate(slot)
+    check("state: look and movement locked, cursor free while expanded",
+          st is not None and st["freed"] == "True" and st["look"] == "False" and st["move"] == "False"
+          and st["lock"] == "None" and st["visible"] == "True", str(st))
+
+    # Compact gives the state back.
+    ok, out = run(slot, "snitch open", r"\[overlay\] (compact|already compact)")
+    time.sleep(0.5)
+    st = inputstate(slot)
+    code, log = s1(slot, "log", "-n", "200", "--grep", "overlay")
+    check("state: compact pops the UI state and the player can look and move",
+          st is not None and st["look"] == "True" and st["move"] == "True" and st["lock"] == "Locked"
+          and log.rfind("UI state popped") > log.rfind("UI state pushed"), str(st))
+
+    # Escape: closes to hidden, gives the state back, and the pause menu stays shut (the cursor stays locked).
+    run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
+    time.sleep(1.0)
+    ok, out = run(slot, "snitch escape", r"escape: (sent|failed|no GameInput)")
+    time.sleep(0.8)
+    code, log = s1(slot, "log", "-n", "200", "--grep", "overlay")
+    st = inputstate(slot)
+    check("state: Escape closes the overlay to hidden", "[overlay] hidden (escape)" in log, log_tail(log, "overlay"))
+    check("state: Escape does not open the pause menu (cursor locked, look and movement back)",
+          st is not None and st["lock"] == "Locked" and st["look"] == "True" and st["move"] == "True", str(st))
+
+    # Phone: on -> QR visible and decodes to the pairing URL; off -> QR gone.
+    run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
+    time.sleep(1.0)
+    code, out = evaluate(slot, "document.getElementById('phone').className")
+    if "on" in last(out).split():
+        s1(slot, "click", APP, "#phone")
+        time.sleep(2.0)
+    code, out = s1(slot, "click", APP, "#phone")
+    time.sleep(2.0)
+    code, log = s1(slot, "log", "-n", "400", "--grep", "snitch")
+    check("phone: Phone on starts the phone remote", "phone remote on" in log, log_tail(log, "phone remote"))
+    qr = where(slot, "qr")
+    check("phone: the QR element is on screen", qr is not None, str(qr))
+    ok, out = run(slot, "snitch qrurl", r"qr url ")
+    m = re.search(r"qr url (\S+)", out)
+    expected = m.group(1) if m else ""
+    check("phone: the host has a pairing URL", expected.startswith("http"), out)
+    text, detail = decode_qr(slot, "phone")
+    check("phone: the QR in the screenshot decodes to the pairing URL", text is not None and text == expected,
+          f"decoded={text!r} expected={expected!r} {detail}")
+    code, out = evaluate(slot, "document.getElementById('pairu').textContent")
+    check("phone: the pairing line names the path in use", last(out) != "", out)
+    code, out = s1(slot, "click", APP, "#phone")
+    time.sleep(2.0)
+    code, log = s1(slot, "log", "-n", "400", "--grep", "snitch")
+    check("phone: Phone again turns the remote off", "phone remote off" in log, log_tail(log, "phone remote"))
+    check("phone: the QR is gone after Phone off", where(slot, "qr") is None, "")
+
+    # Status line: a data server that cannot bind says so in one line.
+    import socket
+    code, log = s1(slot, "log", "-n", "6000", "--grep", "data server on")
+    pm = re.findall(r"data server on http://127\.0\.0\.1:(\d+)/", log)
+    port0 = int(pm[-1]) if pm else 6140
+    holder = socket.socket()
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    taken = holder.getsockname()[1]
+    ok, out = run(slot, f"snitch servertest {taken}", r"data server (running|not running)")
+    time.sleep(2.5)
+    code, text = evaluate(slot, "document.getElementById('note').textContent")
+    check("status: a taken data-server port shows one line", "not running" in out
+          and last(text) == f"Port {taken} is in use, the dashboard is off." and where(slot, "note") is not None, out + " " + text)
+    holder.close()
+    ok, out = run(slot, f"snitch servertest {port0}", r"data server (running|not running)")
+    time.sleep(2.5)
+    check("status: the line is gone once the data server runs", f"running on {port0}" in out and where(slot, "note") is None, out)
 
 
 def slot_root(slot):
@@ -218,6 +581,7 @@ def real_mouse_section(slot):
         held = [l for l in new if "state push held" in l]
         check(f"real mouse {n}: the click on Start/Stop reached the host", bool(hits),
               (hits[-1] if hits else "new overlay lines: " + " | ".join(new[-4:])) + (" (push held)" if held else ""))
+    input_section(slot, root)
 
 
 def windows_section(slot):
@@ -344,9 +708,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--slot", default=None)
     ap.add_argument("--open-max-ms", type=float, default=50.0)
+    ap.add_argument("--real-mouse", action="store_true",
+                    help="opt in to the sections that move the Windows cursor and press keys; never in a default run")
     ap.add_argument("--mouse-only", action="store_true",
-                    help="only the real-mouse section; works without eval (Release Sideload, profile main)")
+                    help="only the real-mouse section (needs --real-mouse); works without eval")
     a = ap.parse_args()
+    if a.mouse_only and not a.real_mouse:
+        print("FAIL --mouse-only moves the real cursor; add --real-mouse to confirm.")
+        return 2
     slot = a.slot
     open_max_ms = a.open_max_ms
 
@@ -540,7 +909,9 @@ def main():
     check("click Start/Stop reaches the host", code == 0 and "[overlay] sampling" in log, out)
     shot(slot, "expanded")
 
-    real_mouse_section(slot)
+    state_section(slot)
+    if a.real_mouse:
+        real_mouse_section(slot)
 
     code, out = s1(slot, "click", APP, ".segbtn[data-w='10']")
     code2, log = s1(slot, "log", "-n", "600", "--grep", "overlay")

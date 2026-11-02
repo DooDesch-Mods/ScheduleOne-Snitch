@@ -29,14 +29,10 @@ namespace Snitch.UI
         private const string SurfaceId = "snitch-overlay";
         private const string Bundle = "Snitch.Assets.overlay";
 
-        // The host rect is a fixed 760 reference pixels wide, anchored to the left edge, so even the expanded state
-        // stays left of the screen centre. The page is authored for that width (design short side 760).
-        private const float HostWidth = 760f;
-        private const float HostMargin = 24f;
-        private const float HostTopAnchor = 0.92f;
-        // The vanilla hotbar occupies the bottom ~10% of the screen; the card's bottom edge stays above it (1080 reference px).
-        private const float HostBottom = 124f;
-        // Expanded standings are capped so the mod panels below stay on screen; the rest is a "+N more" line.
+        // The host rect covers the whole canvas (1920 reference px wide), so the page can place windows anywhere. The
+        // page is authored in reference pixels: its design short side is the canvas height, one css px per reference px.
+        private const float ReferenceWidth = 1920f;
+        // Expanded standings are capped so the window stays short; the rest is a "+N more" line.
         private const int ExpandedRows = 10;
 
         private const double EmitEvery = 0.25;
@@ -92,6 +88,7 @@ namespace Snitch.UI
             if (!Surfaces.IsMounted(SurfaceId) && !Mount()) return false;
 
             _mode = mode;
+            _moveHeld = false;
             if (_raycaster != null) _raycaster.enabled = mode == OverlayMode.Expanded;
             if (mode == OverlayMode.Expanded) OverlayInput.Free();
             else OverlayInput.Restore("compact");
@@ -112,6 +109,8 @@ namespace Snitch.UI
             if (Standings.Pull(now)) _dirty = true;
 
             if (_mode == OverlayMode.Hidden) return;
+
+            TickMoveHold();
 
             // The game locked the cursor again (its own menu closed, a scene loaded): stop holding it.
             if (_mode == OverlayMode.Expanded && OverlayInput.LostToGame())
@@ -199,13 +198,15 @@ namespace Snitch.UI
                 var holder = new GameObject("overlay");
                 var rect = holder.AddComponent<RectTransform>();
                 rect.SetParent(_root.transform, false);
-                rect.anchorMin = new Vector2(0f, 0f);
-                rect.anchorMax = new Vector2(0f, HostTopAnchor);
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
                 rect.pivot = new Vector2(0f, 0f);
-                rect.sizeDelta = new Vector2(HostWidth, 0f);
-                rect.anchoredPosition = new Vector2(HostMargin, HostBottom);
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
 
-                _surface = Surfaces.Mount(rect, SurfaceId, Bundle, designShortSide: HostWidth,
+                // The canvas is ReferenceWidth wide at any aspect; its height follows the screen shape.
+                float refHeight = Screen.width > 0 ? ReferenceWidth * Screen.height / Screen.width : 1080f;
+                _surface = Surfaces.Mount(rect, SurfaceId, Bundle, designShortSide: Mathf.Min(ReferenceWidth, refHeight),
                                           hostAssembly: typeof(Overlay).Assembly);
                 RegisterCalls(_surface);
 
@@ -230,6 +231,7 @@ namespace Snitch.UI
 
         private static void Unmount()
         {
+            _moveHeld = false;
             OverlayInput.Restore("unmount");
             try { if (Surfaces.Available) Surfaces.Unmount(SurfaceId); }
             catch (Exception e) { Core.Log?.Warning("[overlay] unmount failed: " + e.Message); }
@@ -250,6 +252,9 @@ namespace Snitch.UI
         {
             s.OnCall("page.ready", _ => Call("page.ready", () => { _dirty = true; _qrUrl = "\u0001"; return "ok"; }));
             s.OnCall("page.log", a => Call("page.log", () => { Core.Log?.Warning("[overlay] page: " + a); return "ok"; }));
+            s.OnCall("layout.get", _ => Call("layout.get", () => OverlayLayout.Value));
+            s.OnCall("layout.set", a => Call("layout.set", () => OverlayLayout.Store(a) >= 0 ? "ok" : "bad"));
+            s.OnCall("layout.reset", _ => Call("layout.reset", () => { OverlayLayout.Reset(); return "ok"; }));
             s.OnCall("ui.mode", a => Call("ui.mode", () =>
             {
                 // Applied from the next Tick: the surface is being torn down or rebuilt inside its own call otherwise.
@@ -328,6 +333,39 @@ namespace Snitch.UI
             _pending = null;
             SetMode(m, "page");
         }
+
+        /// <summary>Clears the remembered layout and, when the page is up, tells it to lay its windows out again.</summary>
+        internal static void ResetLayout(string why)
+        {
+            OverlayLayout.Reset();
+            if (_surface == null)
+            {
+                Core.Log?.Msg("[overlay] layout cleared while hidden (" + why + "), the next open uses the defaults.");
+                return;
+            }
+            try
+            {
+                _surface.Emit("layout", "reset");
+                Core.Log?.Msg("[overlay] page told to use the default layout (" + why + ").");
+            }
+            catch (Exception e)
+            {
+                Core.Log?.Error("[overlay] could not tell the page to reset its layout: " + e.Message);
+            }
+        }
+
+        /// <summary>Holding Alt in compact mode frees the cursor so the card can be dragged, and puts it back on release.</summary>
+        private static void TickMoveHold()
+        {
+            bool held = _mode == OverlayMode.Compact && (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt));
+            if (held == _moveHeld) return;
+            _moveHeld = held;
+            if (_raycaster != null) _raycaster.enabled = held;
+            if (held) OverlayInput.Free(); else OverlayInput.Restore("compact move released");
+            Core.Log?.Msg("[overlay] compact card " + (held ? "can be moved (Alt held)." : "fixed again (Alt released)."));
+        }
+
+        private static bool _moveHeld;
 
         private static string Call(string name, Func<string> body)
         {

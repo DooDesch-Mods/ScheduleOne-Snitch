@@ -30,8 +30,51 @@ def check(name, ok, detail=""):
 
 
 def run(slot, words, until):
-    code, out = s1(slot, "run", "--until", until, "--max-wait", "8000", *words.split())
+    args = words if isinstance(words, list) else words.split()
+    code, out = s1(slot, "run", "--until", until, "--max-wait", "8000", *args)
     return code == 0 and re.search(until, out) is not None, out
+
+
+def last(out):
+    """The value line of an eval answer, without quotes."""
+    lines = [l for l in out.strip().splitlines() if l.strip()]
+    return lines[-1].strip().strip('"') if lines else ""
+
+
+def rect(slot, sel):
+    """left,top,width,height of the first match as ints, or None when there is none or it has no size."""
+    js = ("(function (s) { var e = document.querySelector(s); if (!e) return 'none'; var r = e.getBoundingClientRect(); "
+          "return [r.left, r.top, r.width, r.height].map(Math.round).join(','); })(" + repr(sel) + ")")
+    code, out = evaluate(slot, js)
+    v = last(out)
+    if code != 0 or not re.fullmatch(r"-?\d+,-?\d+,-?\d+,-?\d+", v):
+        return None
+    r = tuple(int(x) for x in v.split(","))
+    return r if r[2] > 0 and r[3] > 0 else None
+
+
+def drag(slot, a, b, steps, sel):
+    return run(slot, ["--", "sideloaddrag", APP, a, b, str(steps), sel], r"drag on .* released")
+
+
+def viewport(slot):
+    code, out = evaluate(slot, "innerWidth + ',' + innerHeight")
+    v = last(out)
+    return tuple(int(x) for x in v.split(",")) if re.fullmatch(r"\d+,\d+", v) else (1920, 1080)
+
+
+def all_on_screen(slot):
+    vw, vh = viewport(slot)
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.win'), function (e) { "
+                               "var r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]"
+                               ".map(Math.round).join(','); }).join(';')")
+    boxes = [tuple(int(x) for x in b.split(",")) for b in last(out).split(";") if re.fullmatch(r"-?\d+(,-?\d+){3}", b)]
+    bad = [b for b in boxes if b[0] < 0 or b[1] < 0 or b[2] > vw or b[3] > vh]
+    return bool(boxes) and not bad, f"viewport={vw}x{vh} boxes={boxes} outside={bad}"
+
+
+def overlap(a, b):
+    return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
 
 
 def evaluate(slot, js):
@@ -50,6 +93,122 @@ def number_in(out):
     return int(m.group(0)) if m else -1
 
 
+def windows_section(slot):
+    """Expanded mode is running. Starts from the default layout and leaves the default layout behind."""
+    ok, out = run(slot, "snitch layout reset", r"layout reset")
+    time.sleep(1.0)
+
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.win'), function (e) { "
+                               "return e.getAttribute('data-win'); }).join(',')")
+    ids = [i for i in last(out).split(",") if i]
+    mods = [i for i in ids if i not in ("standings", "states")]
+    check("expanded has the Standings window, the States window and a mod window",
+          "standings" in ids and "states" in ids and len(mods) >= 1, f"windows={ids}")
+    check("a 'Windows' chip exists for every window besides Standings",
+          number_in(evaluate(slot, "document.querySelectorAll('#chips > *').length")[1]) >= len(ids) - 1, f"windows={ids}")
+
+    # Default layout: every window open, none on top of another, all inside the screen.
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.win'), function (e) { "
+                               "var r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]"
+                               ".map(Math.round).join(','); }).join(';')")
+    boxes = [tuple(int(x) for x in b.split(",")) for b in last(out).split(";") if re.fullmatch(r"-?\d+(,-?\d+){3}", b)]
+    clash = [(i, j) for i in range(len(boxes)) for j in range(i + 1, len(boxes)) if overlap(boxes[i], boxes[j])]
+    check("default layout: no two windows overlap", len(boxes) == len(ids) and not clash, f"boxes={boxes} clash={clash}")
+    ok, detail = all_on_screen(slot)
+    check("default layout: every window is on screen", ok, detail)
+    shot(slot, "expanded, default layout")
+
+    # Which mod window to work with: the right-most one, so the clamp test below has room to run into the edge.
+    code, out = evaluate(slot, "(function () { var best = null, bx = -1; Array.prototype.forEach.call("
+                               "document.querySelectorAll('.mwin'), function (e) { var l = e.getBoundingClientRect().left; "
+                               "if (l > bx) { bx = l; best = e; } }); return best ? best.getAttribute('data-win') + '|' + best.id : ''; })()")
+    pick = last(out).split("|")
+    if len(pick) != 2:
+        check("a mod window can be picked for the drag checks", False, out)
+        return
+    wid, eid = pick
+    n = eid.split("-")[1]
+    sel = f"[data-win='{wid}']"
+    base = rect(slot, sel)
+    check("mod window has a size", base is not None, f"{wid} {base}")
+    if not base:
+        return
+
+    ok, out = drag(slot, "0.2,0.5", "0.5,0.5", 8, f"#bar-{n}")
+    moved = rect(slot, sel)
+    check("title-bar drag moves a window", ok and moved is not None and moved[0] - base[0] > 40,
+          f"before={base} after={moved}")
+    check("the drag keeps the window size", moved is not None and moved[2:] == base[2:], f"before={base} after={moved}")
+    code, log = s1(slot, "log", "-n", "800", "--grep", "overlay")
+    check("drag end writes the layout ('layout saved')", re.search(r"\[overlay\] layout saved \(\d+ windows\)", log) is not None, "")
+
+    ok, out = drag(slot, "0.5,0.5", "8,8", 10, f"#grip-{n}")
+    grown = rect(slot, sel)
+    check("grip drag changes the size", ok and grown is not None and grown[2] > moved[2] + 40 and grown[3] > moved[3] + 40,
+          f"before={moved} after={grown}")
+
+    shot(slot, "expanded, one window moved and enlarged")
+
+    ok, out = drag(slot, "0.5,0.5", "-12,-12", 10, f"#grip-{n}")
+    small = rect(slot, sel)
+    check("grip drag stops at the minimum size (>= 240 x 120)", ok and small is not None and small[2] >= 240 and small[3] >= 120
+          and small[2] < grown[2], f"before={grown} after={small}")
+
+    # Push the window against the right edge: it must stay on screen.
+    ok, out = drag(slot, "0.2,0.5", "0.95,0.5", 8, f"#bar-{n}")
+    ok2, detail = all_on_screen(slot)
+    far = rect(slot, sel)
+    check("a window dragged to the right edge stays on screen", ok and ok2, f"{detail} window={far}")
+
+    # A click brings the window to the front: it is the last .win in z-order, which the page reports as zIndex.
+    code, out = s1(slot, "click", APP, "#card .brand")
+    code2, out2 = evaluate(slot, "(function () { var a = document.getElementById('card').style.zIndex; "
+                                 "var b = document.querySelector(" + repr(sel) + ").style.zIndex; return a + '|' + b; })()")
+    zs = last(out2).split("|")
+    front_ok = len(zs) == 2 and zs[0].isdigit() and (not zs[1].isdigit() or int(zs[0]) > int(zs[1]))
+    check("a click on a window brings it to the front", code == 0 and front_ok, out2)
+
+    # Persistence: the layout survives hiding the overlay and opening it again.
+    before = rect(slot, sel)
+    run(slot, "snitch close", r"\[overlay\] (hidden|already hidden)")
+    time.sleep(0.5)
+    ok, out = run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
+    time.sleep(1.5)
+    after = rect(slot, sel)
+    check("layout survives 'snitch close' + 'snitch open all'", before is not None and after == before,
+          f"before={before} after={after}")
+
+    # Close and reopen through the Windows strip.
+    code, out = evaluate(slot, "document.querySelector(" + repr(sel) + ").id")
+    eid = last(out)
+    n = eid.split("-")[1] if "-" in eid else n
+    code, out = s1(slot, "click", APP, f"#close-{n}")
+    time.sleep(0.5)
+    gone = rect(slot, sel)
+    check("close button removes the window", code == 0 and gone is None, f"{gone} {out}")
+    code, out = s1(slot, "click", APP, f"#chip-{n}")
+    time.sleep(0.5)
+    back = rect(slot, sel)
+    check("the Windows strip reopens it", code == 0 and back is not None, f"{back} {out}")
+
+    # A closed window stays closed across hide and show.
+    s1(slot, "click", APP, f"#close-{n}")
+    time.sleep(0.5)
+    run(slot, "snitch close", r"\[overlay\] (hidden|already hidden)")
+    time.sleep(0.5)
+    run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
+    time.sleep(1.5)
+    check("a closed window stays closed after close + open all", rect(slot, sel) is None, "")
+
+    ok, out = run(slot, "snitch layout reset", r"layout reset")
+    time.sleep(1.0)
+    reset = rect(slot, sel)
+    check("'snitch layout reset' restores the default layout", ok and reset == base, f"default={base} now={reset}")
+    ok, detail = all_on_screen(slot)
+    check("after the reset every window is on screen", ok, detail)
+    shot(slot, "expanded, after reset")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--slot", default=None)
@@ -59,8 +218,33 @@ def main():
     ok, out = run(slot, "snitch start", r"(?i)sampl|start")
     check("snitch start", ok, out)
 
+    ok, out = run(slot, "snitch layout reset", r"layout reset")
+    check("snitch layout reset (clean start)", ok, out)
+
+    ok, out = run(slot, "snitch help", r"layout reset")
+    check("snitch help lists 'layout reset'", ok, out)
+
     ok, out = run(slot, "snitch open", r"\[overlay\] (compact|already compact)")
     check("snitch open -> compact", ok, out)
+    time.sleep(1.0)
+
+    vw, vh = viewport(slot)
+    card0 = rect(slot, "#card")
+    check("compact card is on screen at its default place", card0 is not None and card0[0] >= 0 and card0[1] >= 0
+          and card0[0] + card0[2] <= vw and card0[1] + card0[3] <= vh, f"card={card0} viewport={vw}x{vh}")
+    # The compact card is dragged by its header; the host leaves the raycaster off in compact, so this also shows
+    # that the drag path works without it.
+    if card0:
+        ok, out = drag(slot, "0.3,0.5", "0.5,0.5", 8, "#head")
+        card1 = rect(slot, "#card")
+        check("compact card moves when its header is dragged", ok and card1 is not None and card1[0] - card0[0] > 40,
+              f"before={card0} after={card1}")
+        code, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
+        check("compact drag end writes the layout once ('layout saved')", "[overlay] layout saved" in log, "")
+        ok, out = run(slot, "snitch layout reset", r"layout reset")
+        time.sleep(0.5)
+        card2 = rect(slot, "#card")
+        check("layout reset puts the compact card back", ok and card2 == card0, f"default={card0} now={card2}")
 
     code, out = evaluate(slot, "document.querySelectorAll('#rows > *').length")
     n = number_in(out)
@@ -153,8 +337,8 @@ def main():
     check("expanded shows at most 10 named riders plus bib 0", exp_named <= 10 and "0" in [b.strip() for b in exp_bibs],
           f"expanded_named={exp_named}")
 
-    code, out = evaluate(slot, "document.querySelectorAll('#panels > *').length")
-    check("expanded shows mod panels (>= 1)", code == 0 and number_in(out) >= 1, out)
+    code, out = evaluate(slot, "document.querySelectorAll('.mwin').length")
+    check("expanded shows mod windows (>= 1)", code == 0 and number_in(out) >= 1, out)
 
     code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.togbox'), "
                                "function (e) { return e.textContent; }).join(',')")
@@ -171,11 +355,6 @@ def main():
           and "is not loaded" not in own, f"loaded lines={loaded} " + own[-200:])
     check("brand rule names Barlow Condensed", bool(re.search(r"\.brand\s*\{[^}]*Barlow Condensed", css)), "")
 
-    code, out = evaluate(slot, "(function () { var c = document.getElementById('card').getBoundingClientRect(); "
-                               "var m = document.getElementById('more').getBoundingClientRect(); "
-                               "return Math.round(c.bottom - m.bottom); })()")
-    check("expanded: #more ends at least 8 css px inside the card bottom", code == 0 and number_in(out) >= 8, out)
-
     code, out = s1(slot, "click", APP, "#run")
     code2, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
     check("click Start/Stop reaches the host", code == 0 and "[overlay] sampling" in log, out)
@@ -184,6 +363,8 @@ def main():
     code, out = s1(slot, "click", APP, ".segbtn[data-w='10']")
     code2, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
     check("window 10 s click is accepted", code == 0 and "ui.window got" not in log.splitlines()[-1], out)
+
+    windows_section(slot)
 
     ok, out = run(slot, "snitch close", r"\[overlay\] (hidden|already hidden)")
     check("snitch close -> hidden", ok, out)
@@ -194,6 +375,12 @@ def main():
     code, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
     bad = [l for l in log.splitlines() if re.search(r"\[overlay\].*(failed|could not|not available)|\[overlay\] page:", l)]
     check("no overlay errors in the log", not bad, "\n".join(bad[-5:]))
+    code, log = s1(slot, "log", "-n", "3000", "--grep", "snitch-overlay")
+    sbad = [l for l in log.splitlines() if re.search(r"(?i)\b(error|exception|failed)\b", l) and "snitch-overlay" in l]
+    check("no Sideload errors for snitch-overlay in the log", not sbad, "\n".join(sbad[-5:]))
+    code, log = s1(slot, "log", "-n", "3000", "--grep", "overlay")
+    dropped = [l for l in log.splitlines() if "layout" in l and re.search(r"(?i)dropped|ignored|invalid|malformed", l)]
+    check("no layout entry was dropped as malformed", not dropped, "\n".join(dropped[-5:]))
 
     failed = results.count(False)
     print(f"{len(results) - failed}/{len(results)} PASS")

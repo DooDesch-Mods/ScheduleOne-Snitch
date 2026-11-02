@@ -84,10 +84,13 @@ profiler is idle until you run `snitch start`.
 ## Usage
 
 The in-game overlay is a Sideload surface of Snitch's own - press
-**F6** (preference `OverlayKey`) to step hidden, compact standings, expanded with every mod's panel; `snitch open` / `snitch open all` / `snitch close` do the same.
+**F6** (preference `OverlayKey`) to step hidden, compact standings, expanded; `snitch open` / `snitch open all` / `snitch close` do the same.
+
+Expanded is a set of windows: Standings (the rows, Start/Stop, Reset, Dashboard, Phone), States, and one window per mod with its panel. Drag a window by its title bar, resize it from the grip in the bottom-right corner, click it to bring it to the front, close it with its x. The Windows strip in Standings reopens closed windows and has Reset layout (console: `snitch layout reset`). Positions, sizes and open state are remembered (preference `OverlayLayout`). The compact card is moved by holding Alt and dragging its header.
 
 Snitch's own console:
 
+- `snitch layout reset` - restore the default window layout.
 - `snitch start` / `snitch stop` - arm / disarm sampling (or the Start/Stop buttons in the expanded overlay).
 - `snitch panels` - list the per-mod panels (shown in the expanded overlay).
 - `snitch act <id>` / `snitch toggle <id>` / `snitch log [<channel>|all]` - run a panel action, flip a toggle, or read the logs.

@@ -51,10 +51,12 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 
 ## Use it
 
-Press **F6** (preference `OverlayKey`) to step the overlay through hidden, compact standings and expanded with every
-mod's panel, with Start/Stop/Reset and live stats. Then `snitch start` (or the Start button). Or open the web
+Press **F6** (preference `OverlayKey`) to step the overlay through hidden, compact standings and expanded. Expanded is a set
+of windows - Standings, States and one per mod - that you drag by the title bar, resize from the bottom-right grip and
+close or reopen from the Windows strip; the layout is remembered and `snitch layout reset` restores it. Hold Alt and drag
+the header to move the compact card. Then `snitch start` (or the Start button). Or open the web
 dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live.
-Console verbs: `start, stop, status, frame, top, sections, states, counters, unattributed,
+Console verbs: `layout reset, start, stop, status, frame, top, sections, states, counters, unattributed,
 patches on|off|list, panels, act, toggle, log, vanilla on|off, ablate <lever>, levers, report`.
 Reports go to `Mods/Snitch/runs/`.
 

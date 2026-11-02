@@ -36,6 +36,7 @@ namespace Snitch.Config
 
         // in-game overlay
         private static MelonPreferences_Entry<string> _overlayKey;
+        private static MelonPreferences_Entry<string> _overlayLayout;
         private static string _overlayKeyName;
         private static KeyCode _overlayKeyCode = KeyCode.F6;
 
@@ -101,6 +102,9 @@ namespace Snitch.Config
                 "The key that steps the in-game overlay through hidden, compact and expanded. Any UnityEngine KeyCode " +
                 "name (F6, Insert, BackQuote ...). An unknown name falls back to F6. The console commands 'snitch open' " +
                 "and 'snitch close' do the same without a key.");
+            _overlayLayout = Create("OverlayLayout", "", "Overlay window layout (managed)",
+                "Position, size and open state of the overlay windows, written when you move, resize, close or reopen " +
+                "one. Reset it with the console command 'snitch layout reset' or the Reset layout button in the overlay.");
             _lanPort = Create("LanPort", 6141, "Phone remote port",
                 "TCP port for the LAN phone endpoint (separate from the loopback port). Change only if it clashes. Clamped 1024-65535.",
                 new MelonLoader.Preferences.ValueRange<int>(1024, 65535));
@@ -146,6 +150,13 @@ namespace Snitch.Config
                 }
                 return _overlayKeyCode;
             }
+        }
+
+        /// <summary>The overlay window layout string (see OverlayLayout). Set only; MelonLoader writes it on shutdown.</summary>
+        internal static string OverlayLayout
+        {
+            get => _overlayLayout?.Value ?? "";
+            set { if (_overlayLayout != null) _overlayLayout.Value = value ?? ""; }
         }
 
         internal static int LanPort => Mathf.Clamp(_lanPort?.Value ?? 6141, 1024, 65535);

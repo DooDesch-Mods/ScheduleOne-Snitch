@@ -7,11 +7,24 @@
 html, body { height: 100%; margin: 0; padding: 0; background-color: transparent; font-family: "Barlow"; color: #14213D; font-size: 15px; }
 button { font-family: "Barlow"; }
 
-.root { height: 100%; justify-content: flex-end; }
+.root { height: 100%; }
 .grow { flex-grow: 1; }
+.desk { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 
-.card { background-color: #E6E9ED; border-radius: 4px; border: 1px solid #14213D; padding: 0; min-height: 0; }
-.head { flex-direction: row; align-items: center; background-color: #14213D; padding: 8px 12px; }
+/* A window: navy title bar, scrolling body, a grip in the bottom-right corner. Position and size are set by script. */
+.win { position: absolute; background-color: #E6E9ED; border-radius: 4px; border: 1px solid #14213D; padding: 0; min-height: 0; overflow: hidden; }
+.win.compact { width: 760px; overflow: visible; }
+.wbar { flex-direction: row; align-items: center; background-color: #14213D; padding: 6px 8px 6px 12px; flex-shrink: 0; }
+.wtitle { flex-grow: 1; flex-shrink: 1; min-width: 0; height: 24px; overflow: hidden; white-space: nowrap; font-family: "Barlow Condensed"; color: #FFFFFF; font-weight: 700; font-size: 19px; letter-spacing: 1px; }
+.wbody { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0; overflow-y: auto; }
+.wbody.fit { flex-grow: 0; flex-basis: auto; overflow: visible; }
+.wclose { width: 26px; min-width: 26px; height: 26px; flex-shrink: 0; margin-left: 8px; padding: 0; border: 1px solid #7A88A8; border-radius: 4px; background-color: transparent; }
+.xa { position: absolute; left: 5px; top: 11px; width: 14px; height: 2px; background-color: #FFFFFF; transform: rotate(45deg); }
+.xb { position: absolute; left: 5px; top: 11px; width: 14px; height: 2px; background-color: #FFFFFF; transform: rotate(-45deg); }
+.grip { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; }
+.gl { position: absolute; right: 4px; bottom: 4px; width: 9px; height: 9px; border-right: 2px solid #14213D; border-bottom: 2px solid #14213D; }
+
+.head { flex-direction: row; align-items: center; background-color: #14213D; padding: 8px 8px 8px 12px; }
 .brand { font-family: "Barlow Condensed"; color: #FFFFFF; font-weight: 700; font-size: 22px; letter-spacing: 2px; margin-right: 12px; }
 .sum { white-space: nowrap; flex-shrink: 0; font-family: "Barlow Condensed"; color: #FFFFFF; font-weight: 600; font-size: 17px; margin-right: 12px; }
 
@@ -53,12 +66,13 @@ button { font-family: "Barlow"; }
 
 .empty { color: #4A5568; padding: 10px 0; }
 
-.more { margin: 0 12px; padding: 4px 0 8px 0; height: 330px; overflow: auto; flex-shrink: 0; }
 .foot { height: 12px; flex-shrink: 0; }
-.sect { font-family: "Barlow Condensed"; font-weight: 700; font-size: 20px; letter-spacing: 1px; padding: 6px 0; }
-.panels { }
-.panel { background-color: #FFFFFF; border-radius: 4px; border: 1px solid #14213D; margin-bottom: 8px; padding: 8px 10px; }
-.ptitle { flex-direction: row; align-items: center; font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.strip { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 0 12px 8px 12px; }
+.striplab { font-family: "Barlow Condensed"; font-weight: 700; font-size: 16px; letter-spacing: 1px; margin-right: 8px; }
+.chips { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.btn.chip { padding: 2px 10px; margin-right: 6px; margin-bottom: 4px; font-size: 15px; }
+.btn.chip.on { background-color: #14213D; color: #FFFFFF; }
+.pbody { padding: 8px 10px 4px 10px; }
 .pbib { width: 24px; min-width: 24px; flex-shrink: 0; text-align: center; height: 22px; border-radius: 4px; font-family: "Barlow Condensed"; font-weight: 700; font-size: 16px; align-items: center; justify-content: center; margin-right: 8px; }
 .ptext { color: #4A5568; font-size: 14px; }
 .acts { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }

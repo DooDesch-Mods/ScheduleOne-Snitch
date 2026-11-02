@@ -75,6 +75,7 @@ namespace Snitch
                     case "slider": SliderCmd(p); break;
                     case "open": OverlayCmd(true, p); break;
                     case "close": OverlayCmd(false, p); break;
+                    case "layout": LayoutCmd(p); break;
                     case "dashboard": Core.OpenDashboard(); break;
                     case "log": LogCmd(p); break;
                     case "vanilla": Vanilla(p); break;
@@ -95,11 +96,25 @@ namespace Snitch
 
         private static void Help()
         {
-            Log("commands: open [all] | close [all] | start | stop | status | frame | top [n] | sections | states [id] | counters | "
+            Log("commands: open [all] | close [all] | layout reset | start | stop | status | frame | top [n] | sections | states [id] | counters | "
                 + "unattributed | patches [on|off|list|status] | "
                 + "panels | act <actionId> | toggle <toggleId> [on|off] | slider <sliderId> [value] | dashboard | log [<channel>|all] [n] | "
                 + "vanilla [on|off] | lan [on|off] | ablate <lever> | levers | report [md|csv|all]  "
-                + "('open' shows the compact standings; 'open all' adds the mod panels; 'close' hides the overlay)");
+                + "('open' shows the compact standings; 'open all' opens the windows; 'close' hides the overlay; "
+                + "'layout reset' puts the overlay windows back to their default places)");
+        }
+
+        /// <summary>Overlay window layout: <c>snitch layout reset</c> forgets every remembered position, size and open state.</summary>
+        private static void LayoutCmd(string[] p)
+        {
+            string sub = p.Length > 2 ? p[2].ToLowerInvariant() : "";
+            if (sub != "reset")
+            {
+                Log("usage: snitch layout reset");
+                return;
+            }
+            Overlay.ResetLayout("console");
+            Log("overlay layout reset to the defaults.");
         }
 
         // ----- per-mod panels (data only; the in-game overlay is Snitch's own Sideload surface) -----

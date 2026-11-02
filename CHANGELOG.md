@@ -2,6 +2,35 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [2.0.0] - 2026-11-02
+
+### Changed
+
+- The overlay looks like race standings: team colour and bib per mod, ms per frame on one shared scale, the slowest
+  section as Leader, the rest as a gap.
+- F6 steps through hidden, compact and expanded. Compact only shows the standings, expanded frees the cursor and
+  holds the controls.
+- In expanded, every mod's panel is its own window: drag it by the title bar, resize it at the corner. The layout is
+  kept.
+- The web dashboard and the phone remote use the same bibs and colours.
+- Snitch needs Sideload 1.36.1 or newer instead of Hotline. With an older Sideload the log names the version found.
+
+### Added
+
+- A mod that stops reporting stays in the list as DNF.
+- One time window (10 s, 30 s or 2 min) drives every number.
+- In expanded the camera stays still, clicks stay on the overlay and Escape closes it.
+- The phone panel shows the QR code, with the relay link when the LAN remote cannot start, and says when a port is
+  taken.
+
+### Fixed
+
+- Turning the phone remote on or off from the overlay no longer crashes the game.
+
+### For mod authors
+
+- Nothing to change: `Snitch.Api`, the console commands and the data on port 6140 stay the same.
+
 ## [1.7.2] - 2026-11-02
 
 ### Changed

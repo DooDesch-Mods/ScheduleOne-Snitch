@@ -136,13 +136,15 @@ namespace Snitch
         }
 
         /// <summary>Turn the phone remote on/off from the overlay toggle. On = start the LAN endpoint AND a relay
-        /// session (so the QR works both on the same Wi-Fi and across networks) and persist the preference; off = stop
-        /// both. The relay E2E and the LAN shortcut share the LAN server's token, so one QR drives both.</summary>
+        /// session (so the QR works both on the same Wi-Fi and across networks) and set the preference; off = stop
+        /// both. The relay E2E and the LAN shortcut share the LAN server's token, so one QR drives both.
+        /// The preference is only set, never saved here: MelonPreferences.Save() fires every mod's preference
+        /// listeners on this thread, and from a page callback that has killed the game. MelonLoader writes the
+        /// value on shutdown.</summary>
         internal static void SetLanRemote(bool on)
         {
             Preferences.LanAccess = on;
-            try { MelonPreferences.Save(); }
-            catch (Exception e) { Log.Warning("[snitch] could not save the phone remote preference: " + e.Message); }
+            Log.Msg("[snitch] phone remote " + (on ? "on" : "off") + " (preference set, written on shutdown)");
             if (on)
             {
                 if (!LanServer.Running) LanServer.Start(Preferences.LanPort);

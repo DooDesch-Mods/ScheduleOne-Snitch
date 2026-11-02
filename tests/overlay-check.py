@@ -93,6 +93,16 @@ def number_in(out):
     return int(m.group(0)) if m else -1
 
 
+def count_saved(slot):
+    code, log = s1(slot, "log", "-n", "4000", "--grep", "layout saved")
+    return len([l for l in log.splitlines() if "[overlay] layout saved" in l])
+
+
+def log_tail(log, word):
+    lines = [l for l in log.splitlines() if word in l]
+    return lines[-1] if lines else "no line with '" + word + "'"
+
+
 def windows_section(slot):
     """Expanded mode is running. Starts from the default layout and leaves the default layout behind."""
     ok, out = run(slot, "snitch layout reset", r"layout reset")
@@ -146,6 +156,10 @@ def windows_section(slot):
     grown = rect(slot, sel)
     check("grip drag changes the size", ok and grown is not None and grown[2] > moved[2] + 40 and grown[3] > moved[3] + 40,
           f"before={moved} after={grown}")
+    code, out = evaluate(slot, "document.getElementById('ghost').style.display + '|' + "
+                               "document.querySelector(" + repr(sel) + ").style.transform")
+    check("after a resize the outline is gone and the window carries no drag transform",
+          last(out).split("|")[0] == "none" and last(out).split("|")[-1] in ("", "none"), out)
 
     shot(slot, "expanded, one window moved and enlarged")
 
@@ -212,8 +226,10 @@ def windows_section(slot):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--slot", default=None)
+    ap.add_argument("--open-max-ms", type=float, default=50.0)
     a = ap.parse_args()
     slot = a.slot
+    open_max_ms = a.open_max_ms
 
     ok, out = run(slot, "snitch start", r"(?i)sampl|start")
     check("snitch start", ok, out)
@@ -224,9 +240,42 @@ def main():
     ok, out = run(slot, "snitch help", r"layout reset")
     check("snitch help lists 'layout reset'", ok, out)
 
+    code, log = s1(slot, "log", "-n", "20000", "--grep", "background")
+    check("the page was built in the background after the save loaded",
+          "[overlay] page built in the background" in log, log_tail(log, "background"))
+
     ok, out = run(slot, "snitch open", r"\[overlay\] (compact|already compact)")
     check("snitch open -> compact", ok, out)
+    check("opening switches the built page on instead of mounting it", "mounting it now" not in out, out)
     time.sleep(1.0)
+
+    # The host logs the worst frame of the switch-on (the frames before the first state push is laid out), the
+    # hitch the key itself causes. 50 ms is three frames at 60 fps; the old open mounted and built the page in that
+    # frame (first build logged at about 500 ms).
+    code, log = s1(slot, "log", "-n", "400", "--grep", "open cost")
+    costs = [float(x) for x in re.findall(r"open cost: switch-on (\d+(?:\.\d+)?) ms", log)]
+    check(f"open cost: switch-on frames <= {open_max_ms:.0f} ms", bool(costs) and costs[-1] <= open_max_ms,
+          log_tail(log, "open cost"))
+
+    # Compact keeps the cursor locked, so nothing in it may look clickable: every button and grip is hidden.
+    code, out = evaluate(slot, "(function () { var bad = []; var els = document.querySelectorAll('button, .grip'); "
+                               "for (var i = 0; i < els.length; i++) { var e = els[i], hid = false; "
+                               "for (var p = e; p && p.style; p = p.parentNode) { if (p.style.display === 'none') { hid = true; break; } } "
+                               "if (!hid) { var r = e.getBoundingClientRect(); if (r.width > 0 && r.height > 0) bad.push(e.id || e.className); } } "
+                               "return els.length + '|' + bad.join(','); })()")
+    parts = last(out).split("|")
+    check("compact shows no button or grip", code == 0 and len(parts) == 2 and parts[0].isdigit() and int(parts[0]) > 0
+          and parts[1] == "", out)
+    code, out = evaluate(slot, "(function () { var e = document.getElementById('chint'); "
+                               "var r = e.getBoundingClientRect(); return (r.height > 0 ? 'shown' : 'hidden') + '|' + e.textContent; })()")
+    hint = last(out)
+    check("compact shows the one-line hint (key to open, hold Alt to move)",
+          hint.startswith("shown|") and "to open" in hint and "Alt" in hint, out)
+    js_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Assets", "overlay", "app.js"))
+    js_src = open(js_path, encoding="utf-8").read() if os.path.exists(js_path) else ""
+    check("compact empty text points to the key, 'Press Start' only in expanded (app.js)",
+          "'Sampling stopped - ' + st.key + ' to open'" in js_src
+          and re.search(r"st\.mode === 'expanded' \? 'Sampling is stopped\. Press Start\.'", js_src) is not None, js_path)
 
     vw, vh = viewport(slot)
     card0 = rect(slot, "#card")
@@ -235,12 +284,13 @@ def main():
     # The compact card is dragged by its header; the host leaves the raycaster off in compact, so this also shows
     # that the drag path works without it.
     if card0:
-        ok, out = drag(slot, "0.3,0.5", "0.5,0.5", 8, "#head")
+        saved0 = count_saved(slot)
+        ok, out = drag(slot, "0.3,0.5", "0.5,0.5", 30, "#head")
         card1 = rect(slot, "#card")
         check("compact card moves when its header is dragged", ok and card1 is not None and card1[0] - card0[0] > 40,
               f"before={card0} after={card1}")
-        code, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
-        check("compact drag end writes the layout once ('layout saved')", "[overlay] layout saved" in log, "")
+        saved = count_saved(slot) - saved0
+        check("a 30-step compact drag writes the layout exactly once, on release", saved == 1, f"layout saved lines={saved}")
         ok, out = run(slot, "snitch layout reset", r"layout reset")
         time.sleep(0.5)
         card2 = rect(slot, "#card")

@@ -116,6 +116,10 @@
     <EmbeddedResource Include="Assets/overlay/*">
       <LogicalName>Snitch.Assets.overlay.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
+    <!-- Bundle paths map '/' to '.', so fonts/x.ttf is looked up as Snitch.Assets.overlay.fonts.x.ttf. -->
+    <EmbeddedResource Include="Assets/overlay/fonts/*">
+      <LogicalName>Snitch.Assets.overlay.fonts.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- Mod loader references (both backends) -->

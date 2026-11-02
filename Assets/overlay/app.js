@@ -27,6 +27,23 @@
 
   function ms(v) { return v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2); }
 
+  // Digit colour on a team colour: white or navy, whichever contrasts more (the dashboard's inkOn).
+  var NAVY = '#14213D';
+  function lin(c) {
+    var s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }
+  function luminance(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  }
+  function inkOn(color) {
+    var l = luminance(color);
+    var white = 1.05 / (l + 0.05);
+    var navy = (l + 0.05) / (luminance(NAVY) + 0.05);
+    return white >= navy ? '#FFFFFF' : NAVY;
+  }
+
   function ago(sec) {
     if (sec < 60) return sec + ' s';
     var m = Math.floor(sec / 60);
@@ -47,48 +64,65 @@
   $('phone').onclick = function () { call('snitch.phone', state && state.phone && state.phone.on ? '0' : '1'); };
 
   // ---- standings ----
+  // The bib is two boxes: the outer one is the white ring with a hairline in the team colour, the inner one the
+  // team-coloured tile that carries the number.
+  function buildBib(cls) {
+    var outer = el('div', cls);
+    var inner = el('div', cls + 'i');
+    outer.appendChild(inner);
+    return { outer: outer, inner: inner };
+  }
+
+  function paintBib(b, number, color) {
+    setText(b.inner, String(number));
+    b.outer.style.borderColor = color;
+    b.inner.style.backgroundColor = color;
+    b.inner.style.color = inkOn(color);
+  }
+
   function buildRow(r) {
     var row = el('div', 'row');
     var mark = el('div', 'nomark');
-    var bib = el('div', 'bib');
+    var bib = buildBib('bib');
     var name = el('div', 'name');
     var bar = el('div', 'bar');
     var fill = el('div', 'fill');
     bar.appendChild(fill);
     var m = el('div', 'ms');
     var g = el('div', 'gap');
+    var gt = el('div', 'gt');
+    g.appendChild(gt);
     row.appendChild(mark);
-    row.appendChild(bib);
+    row.appendChild(bib.outer);
     row.appendChild(name);
     row.appendChild(bar);
     row.appendChild(m);
     row.appendChild(g);
-    return { el: row, mark: mark, bib: bib, name: name, fill: fill, ms: m, gap: g, y: 0 };
+    return { el: row, mark: mark, bib: bib, name: name, fill: fill, ms: m, gt: gt, y: 0 };
   }
 
   function updateRow(o, r, i, scale) {
     var isLeader = i === 0 && !r.dnf;
     setCls(o.mark, isLeader ? 'mark' : 'nomark');
-    setCls(o.el, r.dnf ? 'row dnf' : 'row');
-    setText(o.bib, String(r.bib));
-    o.bib.style.backgroundColor = r.c;
+    setCls(o.el, r.dnf ? 'row dnf' : isLeader ? 'row lead' : 'row');
+    paintBib(o.bib, r.bib, r.c);
     var full = r.g + (r.n && r.n !== r.g ? ' ' + r.n : '');
     setText(o.name, full.length > NAME_MAX ? full.substring(0, NAME_MAX - 3) + '...' : full);
     var w = r.dnf ? 0 : Math.max(0.5, Math.min(100, (r.ms / scale) * 100));
     o.fill.style.width = w + '%';
     o.fill.style.backgroundColor = r.c;
     setText(o.ms, r.dnf ? '' : ms(r.ms) + ' ms');
-    if (r.dnf) setText(o.gap, 'DNF ' + ago(r.silent));
-    else if (isLeader) setText(o.gap, 'Leader');
-    else setText(o.gap, '+' + r.gap.toFixed(2) + ' ms');
-    o.gap.style.color = r.dnf ? '#D7262E' : isLeader ? '#14213D' : '#4A5568';
-    o.gap.style.fontWeight = isLeader || r.dnf ? '700' : '400';
+    if (r.dnf) setText(o.gt, 'DNF ' + ago(r.silent));
+    else if (isLeader) setText(o.gt, 'LEADER');
+    else setText(o.gt, '+' + r.gap.toFixed(2) + ' ms');
+    setCls(o.gt, r.dnf ? 'gt red' : isLeader ? 'gt chip' : 'gt');
   }
 
   function renderRows(st) {
     var host = $('rows');
     var riders = st.riders || [];
     var scale = st.scale > 0 ? st.scale : 1;
+    host.setAttribute('data-scale', String(scale));
 
     if (riders.length === 0) {
       if (!host.getAttribute('data-empty')) {
@@ -172,6 +206,7 @@
   function updatePanel(o, p) {
     setText(o.bib, String(p.bib));
     o.bib.style.backgroundColor = p.c;
+    o.bib.style.color = inkOn(p.c);
 
     var t = (p.text || []).join('\n');
     if (o.textVal !== t) {
@@ -206,7 +241,7 @@
       for (k = 0; k < p.toggles.length; k++) {
         (function (tg) {
           var row = el('div', 'tog');
-          var box = el('div', 'togbox');
+          var box = el('div', 'togbox', 'Off');
           row.appendChild(box);
           row.appendChild(el('div', '', tg.l));
           row.onclick = function () {
@@ -222,6 +257,7 @@
       var tt = o.toggles[p.toggles[k].id];
       tt.on = p.toggles[k].on;
       setCls(tt.box, tt.on ? 'togbox on' : 'togbox');
+      setText(tt.box, tt.on ? 'On' : 'Off');
     }
 
     var ssig = '';
@@ -323,7 +359,7 @@
     var fpsTxt = st.samples > 0
       ? Math.round(st.fps) + ' fps  ' + ms(st.ms) + ' ms  p95 ' + ms(st.p95) + ' ms'
       : 'Waiting for samples';
-    setText($('sum'), fpsTxt);
+    setText($('sum'), st.active ? fpsTxt : st.samples > 0 ? 'Stopped  ' + ms(st.ms) + ' ms' : 'Stopped');
 
     for (var i = 0; i < winBtns.length; i++) {
       var on = Number(winBtns[i].getAttribute('data-w')) === st.win;
@@ -332,7 +368,9 @@
     setText($('toggle'), expanded ? 'Compact' : 'Expand');
     setShow($('ctl'), expanded);
     setText($('run'), st.active ? 'Stop' : 'Start');
-    setCls($('phone'), st.phone && st.phone.on ? 'btn on' : 'btn');
+    var phoneOn = !!(st.phone && st.phone.on);
+    setCls($('phone'), phoneOn ? 'btn on' : 'btn');
+    setText($('phone'), phoneOn ? 'Phone on' : 'Phone');
     setText($('hint'), st.bad > 0 ? st.bad + ' spike frames in unattributed work' : 'Key ' + st.key);
     var showPair = expanded && st.phone && st.phone.on && st.phone.qr;
     setShow($('pair'), showPair);

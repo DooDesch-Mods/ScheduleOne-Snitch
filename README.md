@@ -19,6 +19,8 @@
 
 [![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO/badge.svg)](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO)
 
+![Snitch 2.0.0 - race standings](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/header.jpg)
+
 **[Live dashboard](https://snitch.doodesch.de)** · **[Documentation](https://docs.doodesch.de/mods/snitch/)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de/snitch)**
 
 ## Features
@@ -35,6 +37,15 @@
 - **Phone remote** - scan a QR (in the dashboard or the in-game Snitch panel) to drive the profiler from your phone: live FPS, Start/Stop/Reset, and every mod's actions and toggles. Works on the same Wi-Fi or across networks, end-to-end encrypted.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead (`Snitch.Self`).
 - **Modder API** - a zero-overhead no-op when Snitch isn't installed, so you can ship it with no hard dependency.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Compact overlay](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/overlay-compact.jpg) | ![Expanded overlay](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/overlay-expanded.jpg) |
+| Compact overlay (F6): leader and gaps on one shared ms scale | Expanded overlay: every mod's rows and panel |
+| ![Web dashboard](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/web-dashboard.jpg) | ![Phone remote](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/phone-remote.jpg) |
+| Web dashboard with the same bibs and colours | Phone remote |
 
 ## Requirements
 

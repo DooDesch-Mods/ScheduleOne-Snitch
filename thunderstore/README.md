@@ -17,6 +17,8 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 
 [![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO/badge.svg)](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO)
 
+![Snitch 2.0.0 - race standings](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/header.jpg)
+
 **[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Support](https://support.doodesch.de/snitch)**
 
 ## Features
@@ -33,6 +35,11 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 - **Phone remote** - scan a QR (dashboard or in-game panel) to drive the profiler from your phone: FPS, Start/Stop/Reset, and every mod's actions and toggles. Same Wi-Fi or across networks, end-to-end encrypted.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead.
 - **Modder API** - a zero-overhead no-op when Snitch isn't installed; no hard dependency.
+
+## Screenshots
+
+![Expanded overlay](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/overlay-expanded.jpg)
+![Web dashboard](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/web-dashboard.jpg)
 
 ## Requirements
 

@@ -18,11 +18,11 @@ namespace Snitch.UI
     internal enum OverlayMode { Hidden, Compact, Expanded }
 
     /// <summary>
-    /// Snitch's in-game surface: a Sideload page on its own screen-space overlay canvas, so tone mapping cannot
-    /// flatten its colours. Compact is a lower-third in the bottom-left corner with the top riders and the
-    /// unattributed row; it carries no raycaster, so it never takes a click meant for the game. Expanded adds the
-    /// sampling controls, the phone pairing and every mod's panel, and does take the mouse (it needs a free cursor,
-    /// as the overlay it replaces did). Nothing is mounted while hidden.
+    /// Snitch's in-game surface: a Sideload page on its own screen-space overlay canvas, drawn after the game's
+    /// post-processing. Compact is drawn bottom-left above the hotbar with the top riders and the unattributed row;
+    /// its canvas has the raycaster switched off, so clicks reach the game. Expanded adds the sampling controls, the
+    /// phone pairing and every mod's panel, enables the raycaster and frees the cursor. Nothing is mounted while
+    /// hidden.
     /// </summary>
     internal static class Overlay
     {
@@ -191,8 +191,8 @@ namespace Snitch.UI
                 scaler.referenceResolution = new Vector2(1920f, 1080f);
                 scaler.matchWidthOrHeight = 0f;
 
-                // Only the expanded state is interactive. A raycaster swallows every click inside its rect, and the
-                // compact lower-third sits over the game.
+                // Enabled only while expanded: an enabled raycaster swallows every click inside the page rect, which
+                // in compact mode lies over the game view.
                 _raycaster = _root.AddComponent<GraphicRaycaster>();
                 _raycaster.enabled = false;
 
@@ -344,16 +344,16 @@ namespace Snitch.UI
         private static string StateJson()
         {
             var sb = new StringBuilder(4096);
-            FrameStats f = SnitchCore.LatestFrame;
             double win = _window;
-            double frameMs = Standings.FrameMs(win);
+            FrameWindow f = Standings.Frame(win);
+            double frameMs = f.MeanMs;
             AttributionStats at = SnitchCore.LatestAttribution;
             bool expanded = _mode == OverlayMode.Expanded;
 
             List<Rider> riders = Standings.Rank(win);
+            // Panel ids join the known mod names; the groups of reported sections joined in Standings.Pull.
             var names = new List<string>(PanelRegistry.Count + 8);
             for (int i = 0; i < PanelRegistry.All.Count; i++) names.Add(PanelRegistry.All[i].Id);
-            foreach (string g in Standings.Groups()) names.Add(g);
             Identity.Refresh(names);
 
             sb.Append("{\"mode\":\"").Append(expanded ? "expanded" : "compact").Append('"');
@@ -369,9 +369,10 @@ namespace Snitch.UI
             Str(sb, "key", Preferences.OverlayKey.ToString());
 
             double leader = riders.Count > 0 && !riders[0].Dnf ? riders[0].Ms : 0;
-            Num(sb, "scale", Standings.NiceCeil(leader));
+            Num(sb, "scale", Standings.ScaleFor(leader));
 
-            // Compact shows the top three and the unattributed row; expanded the top ten and the unattributed row.
+            // Compact lists the top three named riders, expanded the top ten; the unattributed row (bib 0) is listed
+            // in both and does not count toward that limit.
             sb.Append(",\"riders\":[");
             bool first = true;
             int shown = 0;
@@ -383,7 +384,7 @@ namespace Snitch.UI
                 if (!unattr && shown >= (expanded ? ExpandedRows : 3)) { hidden++; continue; }
                 if (!first) sb.Append(',');
                 first = false;
-                shown++;
+                if (!unattr) shown++;
                 int bib = Identity.Bib(r.Group);
                 sb.Append("{\"k\":\"").Append(WireProtocol.Esc(r.Key)).Append('"');
                 Str(sb, "g", r.Group);

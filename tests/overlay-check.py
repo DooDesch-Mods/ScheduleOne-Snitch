@@ -99,6 +99,32 @@ def main():
     rule = re.search(r"\.bib\s*\{([^}]*)\}", css)
     check("bib rule centres the digit (text-align center, align-items center)",
           bool(rule) and "text-align: center" in rule.group(1) and "align-items: center" in rule.group(1), css_path)
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.bibi'), "
+                               "function (e) { return e.textContent; }).join(',')")
+    compact_bibs = out.strip().splitlines()[-1].split(",") if out.strip() else []
+    compact_named = len([b for b in compact_bibs if b.strip().isdigit() and b.strip() != "0"])
+    check("compact lists bib 0", code == 0 and "0" in [b.strip() for b in compact_bibs], out)
+
+    # Scale: the ladder step of the web dashboard. The leader's bar width is ms / scale, so the exposed scale must be
+    # the first ladder step >= the leader's ms (a value within 2 % of a step may land on either side).
+    ladder = [0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 25, 33, 50, 100, 250, 500, 1000]
+    code, out = evaluate(slot, "document.getElementById('rows').getAttribute('data-scale')")
+    scale = float(re.search(r"\d+(\.\d+)?", out).group(0)) if re.search(r"\d+(\.\d+)?", out) else -1
+    code2, out2 = evaluate(slot, "(function () { var r = document.querySelector('.row.lead .ms'); "
+                                 "return r ? r.textContent : ''; })()")
+    m = re.search(r"\d+(\.\d+)?", out2)
+    lead_ms = float(m.group(0)) if m else -1
+    expected = {next((x for x in ladder if x >= v), float(-(-v // 1))) for v in (lead_ms * 0.98, lead_ms * 1.02)} if lead_ms > 0 else set()
+    check("bar scale is a step of the dashboard ladder and fits the leader",
+          scale in ladder and scale in expected, f"scale={scale} leader_ms={lead_ms} expected={sorted(expected)}")
+
+    check("segbtn.on is white on navy, not yellow",
+          bool(re.search(r"\.segbtn\.on\s*\{[^}]*background-color:\s*#FFFFFF", css, re.I))
+          and not re.search(r"\.segbtn[^{]*\{[^}]*F2C200", css, re.I), css_path)
+    check("leader chip is the only other yellow fill (.gt.chip, .mark)",
+          len(re.findall(r"F2C200", css, re.I)) == 2, "")
+    check("no fixed ink colour on the bib rules (set per team colour by script)",
+          not re.search(r"\.(bib|bibi|pbib)\s*\{[^}]*[;{ ]color:", css, re.I), "")
     shot(slot, "compact")
 
     ok, out = run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
@@ -115,8 +141,35 @@ def main():
     cut = re.search(r"\+\d+ more", out) is not None
     check("'+N more' line shown exactly when rows were cut", code == 0 and (cut or nrows < 10), out)
 
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.bibi'), "
+                               "function (e) { return e.textContent; }).join(',')")
+    exp_bibs = out.strip().splitlines()[-1].split(",") if out.strip() else []
+    exp_named = len([b for b in exp_bibs if b.strip().isdigit() and b.strip() != "0"])
+    code, out = evaluate(slot, "document.getElementById('morerows').textContent")
+    more = re.search(r"\+(\d+) more", out)
+    total_named = exp_named + (int(more.group(1)) if more else 0)
+    check("compact shows 3 named riders plus bib 0 when >= 3 mods report",
+          total_named >= 3 and compact_named == 3, f"compact_named={compact_named} total_named={total_named}")
+    check("expanded shows at most 10 named riders plus bib 0", exp_named <= 10 and "0" in [b.strip() for b in exp_bibs],
+          f"expanded_named={exp_named}")
+
     code, out = evaluate(slot, "document.querySelectorAll('#panels > *').length")
     check("expanded shows mod panels (>= 1)", code == 0 and number_in(out) >= 1, out)
+
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.togbox'), "
+                               "function (e) { return e.textContent; }).join(',')")
+    tog = out.strip().splitlines()[-1].split(",") if out.strip() else []
+    check("every toggle carries On/Off text", code == 0 and bool(tog) and all(t.strip() in ("On", "Off") for t in tog), out)
+
+    code, out = evaluate(slot, "document.getElementById('phone').textContent")
+    check("phone button reads 'Phone' or 'Phone on'", code == 0 and re.search(r"Phone( on)?\s*$", out.strip()) is not None, out)
+
+    code, log = s1(slot, "log", "-n", "2000", "--grep", "font")
+    own = "\n".join(l for l in log.splitlines() if "snitch-overlay" in l)
+    loaded = len(re.findall(r"@font-face .*loaded from", own))
+    check("all four Barlow faces loaded (BundleFonts log)", loaded >= 4 and "has no @font-face that loaded" not in own
+          and "is not loaded" not in own, f"loaded lines={loaded} " + own[-200:])
+    check("brand rule names Barlow Condensed", bool(re.search(r"\.brand\s*\{[^}]*Barlow Condensed", css)), "")
 
     code, out = evaluate(slot, "(function () { var c = document.getElementById('card').getBoundingClientRect(); "
                                "var m = document.getElementById('more').getBoundingClientRect(); "

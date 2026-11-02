@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Snitch</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="root" class="root">
+  <div id="card" class="card">
+    <div id="head" class="head">
+      <div class="brand">Snitch</div>
+      <div id="sum" class="sum">Waiting for samples</div>
+      <div class="grow"></div>
+      <div id="winbar" class="seg">
+        <button class="segbtn" data-w="10">10 s</button>
+        <button class="segbtn" data-w="30">30 s</button>
+        <button class="segbtn" data-w="120">2 min</button>
+      </div>
+      <button id="toggle" class="btn ghost" title="Expand">Expand</button>
+    </div>
+    <div id="ctl" class="ctl">
+      <button id="run" class="btn navy">Start</button>
+      <button id="reset" class="btn">Reset</button>
+      <button id="dash" class="btn">Dashboard</button>
+      <button id="phone" class="btn">Phone</button>
+      <div class="grow"></div>
+      <div id="hint" class="hint"></div>
+    </div>
+    <div id="pair" class="pair">
+      <img id="qr" class="qr" src="s1://qr">
+      <div class="pairtxt">
+        <div class="pairt">Phone remote</div>
+        <div id="pairu" class="pairu"></div>
+      </div>
+    </div>
+    <div id="rows" class="rows"></div>
+    <div id="more" class="more">
+      <div class="sect">Mods</div>
+      <div id="panels" class="panels"></div>
+      <div id="states" class="states"></div>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

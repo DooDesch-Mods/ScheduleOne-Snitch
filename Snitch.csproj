@@ -97,10 +97,26 @@
   </ItemGroup>
 
 
-  <!-- The Hotline framework's modder shim is VENDORED as a single dropped-in file at Compat/HotlineApi.cs (the
-       droppable single-file form of Hotline.Api). Snitch forwards its per-mod panels to the Hotline in-game overlay
-       through it (a no-op when Hotline is not installed). It is part of Snitch's own source, so it compiles on CI
-       with no sibling/Workspace path. Re-vendor from ../Hotline/Hotline.Api/Hotline.cs only if the Hotline ABI changes. -->
+  <!-- The Sideload.Api shim as source: the sibling Sideload checkout, else the copy under the build libs. The shim
+       finds the host by reflection and every call is a no-op without it. Sideload is a hard dependency: the
+       in-game overlay is a Sideload surface. It comes after the Workspace Remove above so CI keeps the file. -->
+  <PropertyGroup>
+    <SideloadShimPath Condition="Exists('$(MSBuildThisFileDirectory)../Sideload/Sideload.Api/Sideload.cs')">$(MSBuildThisFileDirectory)../Sideload/Sideload.Api/Sideload.cs</SideloadShimPath>
+    <SideloadShimPath Condition="'$(SideloadShimPath)' == '' And Exists('$(WorkspaceLibPath)/sideload-api/Sideload.cs')">$(WorkspaceLibPath)/sideload-api/Sideload.cs</SideloadShimPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Condition="'$(SideloadShimPath)' != ''" Include="$(SideloadShimPath)" Link="Sideload.Api.cs" />
+  </ItemGroup>
+  <Target Name="ErrorWithoutSideloadShim" BeforeTargets="CoreCompile" Condition="'$(SideloadShimPath)' == ''">
+    <Error Text="Sideload.Api/Sideload.cs was not found next to this repo or under $(WorkspaceLibPath)/sideload-api/. The overlay cannot compile without it." />
+  </Target>
+
+  <!-- The overlay page. The LogicalName prefix is the bundle prefix handed to Surfaces.Mount. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets/overlay/*">
+      <LogicalName>Snitch.Assets.overlay.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <!-- Mod loader references (both backends) -->
   <ItemGroup>
@@ -166,6 +182,14 @@
     </Reference>
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>$(GameManagedPath)/UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(GameManagedPath)/UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(GameManagedPath)/UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.InputLegacyModule">

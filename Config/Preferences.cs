@@ -34,6 +34,11 @@ namespace Snitch.Config
         private static MelonPreferences_Entry<bool> _lanAccess;
         private static MelonPreferences_Entry<int> _lanPort;
 
+        // in-game overlay
+        private static MelonPreferences_Entry<string> _overlayKey;
+        private static string _overlayKeyName;
+        private static KeyCode _overlayKeyCode = KeyCode.F6;
+
         internal static void Initialize()
         {
             if (_category != null)
@@ -92,6 +97,10 @@ namespace Snitch.Config
                 "ON: also run a small LAN endpoint so a phone on the same Wi-Fi can open the dashboard and use it as a " +
                 "remote (scan the QR shown in the dashboard). It is token-gated; you may need to allow the port through " +
                 "your firewall on the Private network. Toggle live in-game with 'snitch lan on|off'.");
+            _overlayKey = Create("OverlayKey", "F6", "Overlay key",
+                "The key that steps the in-game overlay through hidden, compact and expanded. Any UnityEngine KeyCode " +
+                "name (F6, Insert, BackQuote ...). An unknown name falls back to F6. The console commands 'snitch open' " +
+                "and 'snitch close' do the same without a key.");
             _lanPort = Create("LanPort", 6141, "Phone remote port",
                 "TCP port for the LAN phone endpoint (separate from the loopback port). Change only if it clashes. Clamped 1024-65535.",
                 new MelonLoader.Preferences.ValueRange<int>(1024, 65535));
@@ -121,6 +130,24 @@ namespace Snitch.Config
         internal static string AllowedOrigins => _allowedOrigins?.Value ?? "https://snitch.doodesch.de";
 
         internal static bool LanAccess { get => _lanAccess?.Value ?? false; set { if (_lanAccess != null) _lanAccess.Value = value; } }
+        /// <summary>The overlay key, parsed once per change of the preference text.</summary>
+        internal static KeyCode OverlayKey
+        {
+            get
+            {
+                string name = _overlayKey?.Value ?? "F6";
+                if (name == _overlayKeyName) return _overlayKeyCode;
+                _overlayKeyName = name;
+                if (System.Enum.TryParse(name, true, out KeyCode k) && k != KeyCode.None) _overlayKeyCode = k;
+                else
+                {
+                    _overlayKeyCode = KeyCode.F6;
+                    Core.Log?.Warning("[snitch] OverlayKey '" + name + "' is not a key name, using F6.");
+                }
+                return _overlayKeyCode;
+            }
+        }
+
         internal static int LanPort => Mathf.Clamp(_lanPort?.Value ?? 6141, 1024, 65535);
     }
 }

@@ -5,7 +5,7 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de/snitch](https://support.doodesch.de/snitch).
 
 Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API - any other
-mod's systems. Its in-game panel lives in the **Hotline** overlay (each mod gets its own panel), alongside a
+mod's systems. Its in-game overlay is a race-standings table (compact, expandable to each mod's panel), alongside a
 combined log timeline and a live **web dashboard** so you can see frame times, section costs, and entity-state
 distributions in real time, and make your mod (or vanilla gameplay) faster.
 
@@ -40,12 +40,12 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 |---|---|
 | MelonLoader | 0.7.x (IL2CPP) |
 | S1API | `ifBars-S1API_Forked` |
-| Hotline | The in-game overlay framework Snitch's panel renders in (auto-installed as a dependency). |
+| Sideload | Draws the in-game overlay (auto-installed as a dependency). |
 
 ## Use it
 
-Install **Hotline** (pulled in as a dependency) and press **F6** for its overlay; Snitch's panel is inside,
-with Start/Stop/Reset and live stats. Then `snitch start` (or the Start button on the panel). Or open the web
+Press **F6** (preference `OverlayKey`) to step the overlay through hidden, compact standings and expanded with every
+mod's panel, with Start/Stop/Reset and live stats. Then `snitch start` (or the Start button). Or open the web
 dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live.
 Console verbs: `start, stop, status, frame, top, sections, states, counters, unattributed,
 patches on|off|list, panels, act, toggle, log, vanilla on|off, ablate <lever>, levers, report`.

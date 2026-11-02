@@ -4,13 +4,15 @@
 
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de/snitch](https://support.doodesch.de/snitch).
 
+📖 **API documentation:** [docs.doodesch.de/mods/snitch/api/](https://docs.doodesch.de/mods/snitch/api/)
+
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
 > [S1API](https://github.com/ifBars/S1API) - any other mod's systems. Its in-game overlay is a
 > race-standings table (a compact lower-third, expandable to every mod's panel),
 > alongside a combined log timeline and a live **[web dashboard](https://snitch.doodesch.de)** so you can see
 > frame times, section costs, and entity-state distributions in real time.
 
-![Version](https://img.shields.io/badge/version-1.6.1-blue)
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
@@ -187,3 +189,5 @@ Built by DooDesch on [S1API](https://github.com/ifBars/S1API) by ifBars.
 ## License
 
 DooDesch API License - build on the API, do not copy the code. See [LICENSE.md](LICENSE.md).
+
+This mod is written with help from generative AI tools (Anthropic Claude, OpenAI Codex).

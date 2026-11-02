@@ -394,6 +394,7 @@ jobs:
           deps: |
             LavaGang-MelonLoader-0.7.3
             ifBars-S1API_Forked-3.1.1
+            DooDesch-Sideload-1.36.1
           categories: |
             Mods
 

@@ -79,6 +79,26 @@ def main():
     code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.ms'), "
                                "function (e) { return e.textContent; }).join('|')")
     check("ms figures carry no line break", code == 0 and "\\n" not in out and out.count("\n") <= 1, out)
+    # Layout rects come from Sideload's own layout tree through getBoundingClientRect.
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.bar'), "
+                               "function (e) { var r = e.getBoundingClientRect(); "
+                               "return Math.round(r.left * 10) / 10 + ':' + Math.round(r.width * 10) / 10; }).join(',')")
+    bars = out.strip().splitlines()[-1].split(",") if out.strip() else []
+    check("every bar track has the same start x and width (shared scale)",
+          code == 0 and len(bars) >= 2 and len(set(bars)) == 1, out)
+    # getComputedStyle does not exist in Sideload, so the centring is checked by the rect (fixed 30 wide,
+    # same left edge in every row) and by the stylesheet rule that centres the text.
+    code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.bib'), "
+                               "function (e) { var r = e.getBoundingClientRect(); "
+                               "return Math.round(r.left) + ':' + Math.round(r.width); }).join(',')")
+    bibs = out.strip().splitlines()[-1].split(",") if out.strip() else []
+    check("bib badges: same left edge and fixed width 30 in every row",
+          code == 0 and len(bibs) >= 2 and len(set(bibs)) == 1 and bibs[0].endswith(":30"), out)
+    css_path = os.path.join(ROOT, "_wt-Snitch-sideload-overlay", "Assets", "overlay", "app.css")
+    css = open(css_path, encoding="utf-8").read() if os.path.exists(css_path) else ""
+    rule = re.search(r"\.bib\s*\{([^}]*)\}", css)
+    check("bib rule centres the digit (text-align center, align-items center)",
+          bool(rule) and "text-align: center" in rule.group(1) and "align-items: center" in rule.group(1), css_path)
     shot(slot, "compact")
 
     ok, out = run(slot, "snitch open all", r"\[overlay\] (expanded|already expanded)")
@@ -97,6 +117,11 @@ def main():
 
     code, out = evaluate(slot, "document.querySelectorAll('#panels > *').length")
     check("expanded shows mod panels (>= 1)", code == 0 and number_in(out) >= 1, out)
+
+    code, out = evaluate(slot, "(function () { var c = document.getElementById('card').getBoundingClientRect(); "
+                               "var m = document.getElementById('more').getBoundingClientRect(); "
+                               "return Math.round(c.bottom - m.bottom); })()")
+    check("expanded: #more ends at least 8 css px inside the card bottom", code == 0 and number_in(out) >= 8, out)
 
     code, out = s1(slot, "click", APP, "#run")
     code2, log = s1(slot, "log", "-n", "600", "--grep", "overlay")

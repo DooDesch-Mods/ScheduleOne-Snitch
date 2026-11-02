@@ -342,6 +342,7 @@
     setText($('morerows'), st.more > 0 ? '+' + st.more + ' more' : '');
     setShow($('morerows'), st.more > 0);
     setShow($('more'), expanded);
+    setShow($('foot'), expanded);
     if (expanded) renderPanels(st);
     else dragging = false;
   }

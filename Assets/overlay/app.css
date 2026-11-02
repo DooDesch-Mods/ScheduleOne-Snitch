@@ -28,26 +28,27 @@ html, body { height: 100%; margin: 0; padding: 0; background-color: transparent;
 
 .rows { padding: 4px 12px 10px 12px; }
 .row { flex-direction: row; align-items: center; height: 34px; transition: translate 180ms ease-out; }
-.bib { width: 30px; height: 26px; border-radius: 4px; color: #FFFFFF; font-weight: 700; font-size: 15px; align-items: center; justify-content: center; margin-right: 8px; }
-.name { width: 236px; height: 22px; overflow: hidden; white-space: nowrap; font-size: 15px; font-weight: 600; }
-.bar { flex-grow: 1; height: 12px; background-color: #FFFFFF; border-radius: 4px; margin-right: 8px; }
+.bib { width: 30px; min-width: 30px; flex-shrink: 0; text-align: center; height: 26px; border-radius: 4px; color: #FFFFFF; font-weight: 700; font-size: 15px; align-items: center; justify-content: center; margin-right: 8px; }
+.name { width: 236px; min-width: 236px; flex-shrink: 0; height: 22px; overflow: hidden; white-space: nowrap; font-size: 15px; font-weight: 600; }
+.bar { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; height: 12px; background-color: #FFFFFF; border-radius: 4px; margin-right: 8px; }
 .fill { height: 12px; border-radius: 4px; }
-.ms { width: 96px; white-space: nowrap; text-align: right; font-weight: 700; font-size: 15px; }
-.gap { width: 100px; white-space: nowrap; text-align: right; color: #4A5568; font-size: 14px; }
+.ms { width: 96px; min-width: 96px; flex-shrink: 0; white-space: nowrap; text-align: right; font-weight: 700; font-size: 15px; }
+.gap { width: 100px; min-width: 100px; flex-shrink: 0; white-space: nowrap; text-align: right; color: #4A5568; font-size: 14px; }
 .morerows { color: #4A5568; font-size: 14px; padding: 0 12px 10px 12px; }
 .lead { width: 92px; text-align: right; font-weight: 700; font-size: 14px; }
-.mark { width: 8px; height: 26px; background-color: #F2C200; border-radius: 2px; margin-right: 6px; }
-.nomark { width: 8px; height: 26px; margin-right: 6px; }
+.mark { width: 8px; flex-shrink: 0; height: 26px; background-color: #F2C200; border-radius: 2px; margin-right: 6px; }
+.nomark { width: 8px; flex-shrink: 0; height: 26px; margin-right: 6px; }
 .dnf { opacity: 0.55; }
 
 .empty { color: #4A5568; padding: 10px 0; }
 
-.more { padding: 4px 12px 12px 12px; height: 330px; overflow: auto; }
+.more { margin: 0 12px; padding: 4px 0 8px 0; height: 330px; overflow: auto; flex-shrink: 0; }
+.foot { height: 12px; flex-shrink: 0; }
 .sect { font-weight: 700; font-size: 16px; padding: 6px 0; }
 .panels { }
 .panel { background-color: #FFFFFF; border-radius: 4px; border: 1px solid #14213D; margin-bottom: 8px; padding: 8px 10px; }
 .ptitle { flex-direction: row; align-items: center; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
-.pbib { width: 24px; height: 20px; border-radius: 4px; color: #FFFFFF; font-size: 13px; align-items: center; justify-content: center; margin-right: 8px; }
+.pbib { width: 24px; min-width: 24px; flex-shrink: 0; text-align: center; height: 20px; border-radius: 4px; color: #FFFFFF; font-size: 13px; align-items: center; justify-content: center; margin-right: 8px; }
 .ptext { color: #4A5568; font-size: 14px; }
 .acts { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
 .tog { flex-direction: row; align-items: center; margin-top: 6px; }

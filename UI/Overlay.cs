@@ -35,7 +35,9 @@ namespace Snitch.UI
         // Expanded standings are capped so the window stays short; the rest is a "+N more" line.
         private const int ExpandedRows = 10;
 
-        private const double EmitEvery = 0.25;
+        // Seconds between pushes that only carry new samples.
+        private const double ExpandedEvery = 1.0;
+        private const double CompactEvery = 0.5;
 
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
         private static readonly Regex Tags = new Regex("<[^>]+>", RegexOptions.Compiled);
@@ -47,11 +49,21 @@ namespace Snitch.UI
         private static OverlayMode _mode = OverlayMode.Hidden;
         private static int _window = 30;
         private static bool _dirty;
+        private static bool _dataDirty;
+        private static string _lastJson;
         private static double _lastEmit;
         private static float _lastMountCheck;
         private static string _qrUrl = "";
 
         internal static OverlayMode Mode => _mode;
+
+        private static bool _sceneChanged;
+        private static double _lastStatusCheck;
+        private static string _statusKey = "";
+
+        /// <summary>A scene was unloaded: the game's UI state belongs to that scene, so the expanded overlay
+        /// gives it back on the next tick.</summary>
+        internal static void SceneChanged() { _sceneChanged = true; }
 
         // Window drags (pointer capture), @font-face and the surface repaint fix first shipped together in this release.
         private const string RequiredSideload = "1.36.1";
@@ -169,7 +181,7 @@ namespace Snitch.UI
             if (Preferences.Enabled && Input.GetKeyDown(Preferences.OverlayKey)) Cycle();
 
             double now = Time.realtimeSinceStartupAsDouble;
-            if (Standings.Pull(now)) _dirty = true;
+            if (Standings.Pull(now)) _dataDirty = true;
 
             if (_mode == OverlayMode.Hidden)
             {
@@ -179,6 +191,17 @@ namespace Snitch.UI
 
             TickOpenCost();
             TickMoveHold();
+
+            if (_sceneChanged)
+            {
+                _sceneChanged = false;
+                if (_mode == OverlayMode.Expanded)
+                {
+                    OverlayInput.Restore("scene change");
+                    SetMode(OverlayMode.Compact, "scene change");
+                    return;
+                }
+            }
 
             // The game locked the cursor again (its own menu closed, a scene loaded): stop holding it.
             if (_mode == OverlayMode.Expanded && OverlayInput.LostToGame())
@@ -210,9 +233,19 @@ namespace Snitch.UI
                 _dirty = true;
             }
 
-            if (!_dirty && now - _lastEmit < EmitEvery) return;
-            // Not on every frame: the page rebuilds on a changed value, and the numbers only move per poll.
-            if (!_dirty && now - _lastEmit < 1.0 / Math.Max(1f, Preferences.PollHz)) return;
+            // A server that starts or fails, or a phone path that comes up, changes the status line and the QR without
+            // any sample or click, so it is looked at once a second.
+            if (now - _lastStatusCheck >= 1.0)
+            {
+                _lastStatusCheck = now;
+                string key = StatusNote() + "|" + PhoneActive;
+                if (key != _statusKey) { _statusKey = key; _dirty = true; }
+            }
+
+            // New samples alone push at a slow rate, because every changed number lays the page out again. A click,
+            // a mode change or a layout change (_dirty) pushes at once.
+            bool dataDue = _dataDirty && now - _lastEmit >= (_mode == OverlayMode.Expanded ? ExpandedEvery : CompactEvery);
+            if (!_dirty && !dataDue) return;
 
             // A changed value lays the page out again and replaces the pressed uGUI button, which then raises no
             // click on release. While the left mouse button is held over the open overlay the push waits.
@@ -227,6 +260,7 @@ namespace Snitch.UI
 
             _lastEmit = now;
             _dirty = false;
+            _dataDirty = false;
             Push();
         }
 
@@ -235,8 +269,15 @@ namespace Snitch.UI
             if (_surface == null) return;
             try
             {
+                long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 SupplyQr();
-                _surface.Emit("state", StateJson());
+                string json = StateJson();
+                // An identical state leaves the page as it is; sending it would only queue a rebuild.
+                if (json == _lastJson) return;
+                _lastJson = json;
+                _surface.Emit("state", json);
+                double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                if (ms > 8.0) Core.Log?.Warning("[overlay] state push took " + ms.ToString("F1", Inv) + " ms.");
             }
             catch (Exception e)
             {
@@ -331,6 +372,7 @@ namespace Snitch.UI
         private static void Unmount()
         {
             _moveHeld = false;
+            _lastJson = null;
             OverlayInput.Restore("unmount");
             try { if (Surfaces.Available) Surfaces.Unmount(SurfaceId); }
             catch (Exception e) { Core.Log?.Warning("[overlay] unmount failed: " + e.Message); }
@@ -513,7 +555,7 @@ namespace Snitch.UI
 
         private static void RegisterCalls(SurfaceHandle s)
         {
-            s.OnCall("page.ready", _ => Call("page.ready", () => { _dirty = true; _qrUrl = "\u0001"; _pageReady = true; return "ok"; }));
+            s.OnCall("page.ready", _ => Call("page.ready", () => { _dirty = true; _lastJson = null; _qrUrl = "\u0001"; _pageReady = true; return "ok"; }));
             s.OnCall("page.log", a => Call("page.log", () => { Core.Log?.Warning("[overlay] page: " + a); return "ok"; }));
             s.OnCall("layout.get", _ => Call("layout.get", () => OverlayLayout.Value));
             s.OnCall("layout.set", a => Call("layout.set", () => OverlayLayout.Store(a) >= 0 ? "ok" : "bad"));
@@ -714,7 +756,7 @@ namespace Snitch.UI
             Num(sb, "win", win);
             Bool(sb, "active", SnitchCore.Active);
             Num(sb, "samples", Standings.Count);
-            Num(sb, "fps", frameMs > 0 ? 1000.0 / frameMs : 0);
+            Num(sb, "fps", frameMs > 0 ? Math.Round(1000.0 / frameMs) : 0);
             Num(sb, "ms", frameMs);
             Num(sb, "p95", f.P95Ms);
             Num(sb, "gc", f.Gc0Per1000);
@@ -758,9 +800,13 @@ namespace Snitch.UI
             Num(sb, "more", hidden);
 
             // phone pairing
-            sb.Append(",\"phone\":{\"on\":").Append(LanServer.Running ? "true" : "false");
+            bool phoneActive = PhoneActive;
+            sb.Append(",\"phone\":{\"on\":").Append(phoneActive ? "true" : "false");
+            // "want" keeps the button able to switch the remote off while it is enabled but neither path started.
+            sb.Append(",\"want\":").Append(Preferences.LanAccess ? "true" : "false");
             sb.Append(",\"qr\":").Append(_qrUrl.Length > 0 && _qrUrl[0] != '\u0001' ? "true" : "false");
-            sb.Append(",\"url\":\"").Append(WireProtocol.Esc(LanServer.Running ? PhoneLine() : "")).Append("\"}");
+            sb.Append(",\"url\":\"").Append(WireProtocol.Esc(phoneActive ? PhoneLine() : "")).Append("\"}");
+            Str(sb, "note", expanded ? StatusNote() : "");
 
             if (expanded)
             {
@@ -870,6 +916,23 @@ namespace Snitch.UI
             sb.Append("]}");
         }
 
+        /// <summary>True while a phone can reach the game: the LAN endpoint or a relay session is up.</summary>
+        internal static bool PhoneActive => LanServer.Running || (RelayHost.Running && !string.IsNullOrEmpty(RelayHost.Code));
+
+        /// <summary>One sentence when the dashboard or the phone remote cannot work, empty otherwise.</summary>
+        private static string StatusNote()
+        {
+            if (Preferences.Enabled && !SnitchServer.Running)
+                return SnitchServer.Failed
+                    ? "Port " + SnitchServer.Port + " is in use, the dashboard is off."
+                    : "The data server is off in the settings, the dashboard is off.";
+            if (Preferences.LanAccess && !PhoneActive)
+                return LanServer.Failed
+                    ? "Port " + LanServer.Port + " is in use, the phone remote is off."
+                    : "The phone remote is starting.";
+            return "";
+        }
+
         private static string PhoneLine()
         {
             return RelayHost.Running && !string.IsNullOrEmpty(RelayHost.Code)
@@ -889,7 +952,8 @@ namespace Snitch.UI
         private static void Num(StringBuilder sb, string key, double v)
         {
             if (double.IsNaN(v) || double.IsInfinity(v)) v = 0;
-            sb.Append(",\"").Append(key).Append("\":").Append(v.ToString("0.###", Inv));
+            // Two decimals is what the page shows; a finer figure would only make every push differ.
+            sb.Append(",\"").Append(key).Append("\":").Append(v.ToString("0.##", Inv));
         }
 
         private static void Bool(StringBuilder sb, string key, bool v)

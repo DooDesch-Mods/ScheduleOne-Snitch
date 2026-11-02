@@ -39,6 +39,8 @@ namespace Snitch.Server
         private static string _token = "";
 
         internal static bool Running => _running;
+        /// <summary>True when the last start attempt failed (the port is taken); cleared by the next attempt.</summary>
+        internal static bool Failed { get; private set; }
         internal static int Port => _port;
         internal static string Ip => _ip;
         internal static string Token => _token;
@@ -53,6 +55,7 @@ namespace Snitch.Server
             _token = string.IsNullOrEmpty(Config.Preferences.ServerToken)
                 ? Guid.NewGuid().ToString("N").Substring(0, 8)
                 : Config.Preferences.ServerToken;
+            Failed = false;
             try
             {
                 _listener = new TcpListener(IPAddress.Any, port);
@@ -66,6 +69,7 @@ namespace Snitch.Server
             catch (Exception e)
             {
                 _running = false;
+                Failed = true;
                 Core.Log?.Error($"[snitch] LAN remote failed to start on {port}: {e.Message} (port in use? change LanPort)");
             }
         }

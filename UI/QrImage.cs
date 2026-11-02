@@ -9,7 +9,7 @@ namespace Snitch.UI
     /// Builds the "connect a phone" QR for the overlay as PNG bytes, the form a Sideload surface takes pictures in.
     /// With a relay session the code points at the hosted site carrying the pairing code, which works from any
     /// network; otherwise it is the LAN-direct URL, which needs the dashboard bundled beside the DLL. Returns null
-    /// while the LAN endpoint is off or neither form is available, so the panel shows no picture until it can.
+    /// while neither the LAN endpoint nor a relay session is up or neither form is available, so the panel shows no picture until it can.
     /// The result is cached by URL, so polling it every frame costs nothing once built.
     /// </summary>
     internal static class QrImage
@@ -25,11 +25,13 @@ namespace Snitch.UI
 
         internal static byte[] Build()
         {
-            if (!LanServer.Running) { _cache = null; _cacheUrl = null; return null; }
+            bool relay = RelayHost.Running && !string.IsNullOrEmpty(RelayHost.Code);
+            if (!LanServer.Running && !relay) { _cache = null; _cacheUrl = null; return null; }
 
-            string lan = WebAssets.HasBundledDashboard() ? "&lan=" + LanServer.Ip + ":" + LanServer.Port : "";
+            // The LAN shortcut only goes into the code while the LAN endpoint is up.
+            string lan = LanServer.Running && WebAssets.HasBundledDashboard() ? "&lan=" + LanServer.Ip + ":" + LanServer.Port : "";
             string url;
-            if (RelayHost.Running && !string.IsNullOrEmpty(RelayHost.Code))
+            if (relay)
                 url = "https://snitch.doodesch.de/#join=" + RelayHost.Code + "&t=" + LanServer.Token + lan;
             else if (lan.Length > 0)
                 url = "http://" + LanServer.Ip + ":" + LanServer.Port + "/#remote&t=" + LanServer.Token;

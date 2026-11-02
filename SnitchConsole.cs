@@ -78,6 +78,10 @@ namespace Snitch
                     case "layout": LayoutCmd(p); break;
 #if DEBUG
                     case "where": Log(p.Length > 2 ? Overlay.Where(p[2]) : "usage: snitch where <elementId>"); break;
+                    case "servertest": ServerTest(p); break;
+                    case "qrurl": Log("qr url " + (Snitch.UI.QrImage.Build() == null ? "none" : Snitch.UI.QrImage.Url)); break;
+                    case "inputstate": Log(Snitch.UI.OverlayInput.Describe()); break;
+                    case "escape": Log(Snitch.UI.OverlayInput.PressEscape()); break;
 #endif
                     case "dashboard": Core.OpenDashboard(); break;
                     case "log": LogCmd(p); break;
@@ -96,6 +100,21 @@ namespace Snitch
             }
             return true;
         }
+
+#if DEBUG
+        /// <summary>Restarts the data server on the given port, so a check can point it at a port that is taken.</summary>
+        private static void ServerTest(string[] p)
+        {
+            if (p.Length < 3 || !int.TryParse(p[2], out int port) || port < 1024 || port > 65535)
+            {
+                Log("usage: snitch servertest <port>");
+                return;
+            }
+            SnitchServer.Stop();
+            SnitchServer.Start(port, Preferences.ServerToken, Preferences.AllowedOrigins);
+            Log("data server " + (SnitchServer.Running ? "running" : "not running") + " on " + port + ".");
+        }
+#endif
 
         private static void Help()
         {

@@ -63,7 +63,7 @@
   $('run').onclick = function () { call('snitch.sampling', state && state.active ? 'stop' : 'start'); };
   $('reset').onclick = function () { call('snitch.sampling', 'reset'); };
   $('dash').onclick = function () { call('snitch.dashboard'); };
-  $('phone').onclick = function () { call('snitch.phone', state && state.phone && state.phone.on ? '0' : '1'); };
+  $('phone').onclick = function () { call('snitch.phone', state && state.phone && (state.phone.on || state.phone.want) ? '0' : '1'); };
 
   // ---- standings ----
   // The bib is two boxes: the outer one is the white ring with a hairline in the team colour, the inner one the
@@ -111,8 +111,10 @@
     var full = r.g + (r.n && r.n !== r.g ? ' ' + r.n : '');
     setText(o.name, full.length > NAME_MAX ? full.substring(0, NAME_MAX - 3) + '...' : full);
     var w = r.dnf ? 0 : Math.max(0.5, Math.min(100, (r.ms / scale) * 100));
-    o.fill.style.width = w + '%';
-    o.fill.style.backgroundColor = r.c;
+    // The fill is always full width and scaled: a transform is repainted, a changed width lays the page out again.
+    var sx = String(Math.round(w) / 100);
+    if (o.sx !== sx) { o.sx = sx; o.fill.style.transform = 'scaleX(' + sx + ')'; }
+    if (o.fc !== r.c) { o.fc = r.c; o.fill.style.backgroundColor = r.c; }
     setText(o.ms, r.dnf ? '' : ms(r.ms) + ' ms');
     if (r.dnf) setText(o.gt, 'DNF ' + ago(r.silent));
     else if (isLeader) setText(o.gt, 'LEADER');
@@ -751,6 +753,9 @@
     setText($('phone'), phoneOn ? 'Phone on' : 'Phone');
     setText($('hint'), st.bad > 0 ? st.bad + ' spike frames in unattributed work' : 'Key ' + st.key);
     setText($('chint'), st.key + ' to open · hold Alt to move');
+    var note = expanded && st.note ? st.note : '';
+    setText($('note'), note);
+    setShow($('note'), note.length > 0);
     var showPair = expanded && st.phone && st.phone.on && st.phone.qr;
     setShow($('pair'), showPair);
     if (showPair) setText($('pairu'), st.phone.url);

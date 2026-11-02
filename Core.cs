@@ -87,6 +87,7 @@ namespace Snitch
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
             _inWorld = false;
+            Snitch.UI.Overlay.SceneChanged();
         }
 
         public override void OnUpdate()

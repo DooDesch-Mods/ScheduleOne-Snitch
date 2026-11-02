@@ -41,7 +41,7 @@ button { font-family: "Barlow"; }
 .hint { color: #4A5568; font-size: 13px; }
 
 .pair { flex-direction: row; align-items: center; padding: 8px 12px; background-color: #FFFFFF; border-top: 1px solid #E6E9ED; }
-.qr { width: 132px; height: 132px; }
+.qr { width: 132px; height: 132px; color: #FFFFFF; }
 .pairtxt { margin-left: 12px; }
 .pairt { font-weight: 600; font-size: 15px; }
 .pairu { color: #4A5568; font-size: 13px; margin-top: 4px; }
@@ -53,7 +53,7 @@ button { font-family: "Barlow"; }
 .bibi { width: 24px; height: 24px; border-radius: 2px; font-family: "Barlow Condensed"; font-weight: 700; font-size: 17px; text-align: center; align-items: center; justify-content: center; }
 .name { width: 236px; min-width: 236px; flex-shrink: 0; height: 22px; overflow: hidden; white-space: nowrap; font-size: 15px; font-weight: 600; }
 .bar { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; height: 12px; background-color: #FFFFFF; border-radius: 4px; margin-right: 8px; }
-.fill { height: 12px; border-radius: 4px; }
+.fill { width: 100%; height: 12px; border-radius: 4px; transform-origin: 0 0; transform: scaleX(0.01); }
 .ms { font-family: "Barlow Condensed"; width: 96px; min-width: 96px; flex-shrink: 0; white-space: nowrap; text-align: right; font-weight: 700; font-size: 18px; }
 .gap { font-family: "Barlow Condensed"; width: 100px; min-width: 100px; flex-shrink: 0; align-items: flex-end; font-weight: 600; font-size: 16px; }
 .gt { white-space: nowrap; text-align: right; color: #4A5568; }
@@ -94,3 +94,22 @@ button { font-family: "Barlow"; }
 .ll.e { color: #D7262E; }
 .states { margin-top: 4px; }
 .st { color: #4A5568; font-size: 14px; padding: 2px 0; }
+.note { color: #D7262E; font-size: 14px; font-weight: 600; padding: 4px 12px 0 12px; }
+
+/* Hover and press feedback. Only paint-only properties (background, border-color, outline, box-shadow): Sideload
+   answers those with a repaint, while anything else would lay the page out again under the pressed button and the
+   click would be lost. `color` is left alone for that reason. */
+.btn:hover { background-color: #D7DEEA; border-color: #3B5BA9; box-shadow: 0 0 0 1px #3B5BA9; }
+.btn:active { background-color: #BCC7DC; }
+.btn.navy:hover, .btn.on:hover { background-color: #2B4272; }
+.btn.navy:active, .btn.on:active { background-color: #0C1528; }
+.segbtn:hover { background-color: #3A4D78; border-color: #FFFFFF; }
+.segbtn:active { background-color: #566B9C; }
+.segbtn.on:hover { background-color: #E6E9ED; }
+.wclose:hover { background-color: #3A4D78; border-color: #FFFFFF; }
+.wclose:active { background-color: #566B9C; }
+.togbox:hover { background-color: #D7DEEA; box-shadow: 0 0 0 1px #3B5BA9; }
+.togbox:active { background-color: #BCC7DC; }
+.togbox.on:hover { background-color: #2B4272; }
+.wbar:hover { background-color: #1D2F57; }
+.head:hover { background-color: #1D2F57; }

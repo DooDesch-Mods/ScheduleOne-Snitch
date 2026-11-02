@@ -324,9 +324,23 @@
     }
   }
 
+  // z-index is not a paint-only property in Sideload: writing it lays the page out again and replaces every uGUI
+  // object. A write while the mouse is held destroys the pressed button, and uGUI then raises no click on release.
+  // So a window already on top is left alone, and a plain press raises its window only after the release.
   function front(id) {
     var w = wins[id];
-    if (w) w.el.style.zIndex = String(++zTop);
+    if (!w) return;
+    if (w.el.style.zIndex === String(zTop)) return;
+    w.el.style.zIndex = String(++zTop);
+  }
+
+  var pendingFront = null;
+
+  function frontAfterRelease() {
+    if (pendingFront === null) return;
+    var id = pendingFront;
+    pendingFront = null;
+    setTimeout(function () { front(id); }, 0);
   }
 
   function hitButton(t) {
@@ -341,6 +355,9 @@
     if (ev.buttons !== undefined && ev.buttons !== 0 && !(ev.buttons & 1)) return;
     if (kind === 'move' && hitButton(ev.target)) return;
     if (drag) endDrag();
+    // A drag carries no click, so its window comes to the front at once.
+    pendingFront = null;
+    front(w.id);
     var compact = w.id === 'standings' && cardCompact();
     var r = $('card').getBoundingClientRect();
     var cur = compact ? { x: r.left, y: r.top, w: r.width, h: r.height } : w.r;
@@ -410,7 +427,8 @@
   }
 
   function attach(w) {
-    w.el.addEventListener('pointerdown', function () { front(w.id); });
+    w.el.addEventListener('pointerdown', function () { pendingFront = w.id; });
+    w.el.addEventListener('pointerup', frontAfterRelease);
     w.bar.addEventListener('pointerdown', function (ev) { startDrag('move', w, ev, w.bar); });
     w.bar.addEventListener('pointermove', function (ev) { moveDrag(ev, w.bar); });
     w.bar.addEventListener('pointerup', function () { endDrag(); });

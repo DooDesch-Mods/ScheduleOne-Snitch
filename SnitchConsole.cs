@@ -76,6 +76,9 @@ namespace Snitch
                     case "open": OverlayCmd(true, p); break;
                     case "close": OverlayCmd(false, p); break;
                     case "layout": LayoutCmd(p); break;
+#if DEBUG
+                    case "where": Log(p.Length > 2 ? Overlay.Where(p[2]) : "usage: snitch where <elementId>"); break;
+#endif
                     case "dashboard": Core.OpenDashboard(); break;
                     case "log": LogCmd(p); break;
                     case "vanilla": Vanilla(p); break;
@@ -102,6 +105,9 @@ namespace Snitch
                 + "vanilla [on|off] | lan [on|off] | ablate <lever> | levers | report [md|csv|all]  "
                 + "('open' shows the compact standings; 'open all' opens the windows; 'close' hides the overlay; "
                 + "'layout reset' puts the overlay windows back to their default places)");
+#if DEBUG
+            Log("debug: where <elementId> logs the screen centre of an overlay element.");
+#endif
         }
 
         /// <summary>Overlay window layout: <c>snitch layout reset</c> forgets every remembered position, size and open state.</summary>

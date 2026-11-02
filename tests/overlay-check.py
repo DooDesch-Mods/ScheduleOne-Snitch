@@ -103,6 +103,123 @@ def log_tail(log, word):
     return lines[-1] if lines else "no line with '" + word + "'"
 
 
+# ----- real mouse: OS input -> Unity Input -> EventSystem -> Sideload -> page -> host -----
+#
+# `s1 click` (Sideload ClickProbe) raises down, up and click in one frame on one object, and `sideloaddrag` holds
+# the press but never raises a uGUI click. Neither sees a page rebuild between press and release, which is what
+# swallowed real clicks. This section moves the Windows cursor and presses the left button with SendInput-level
+# calls, held across several frames, so the click goes through the same path as a player's mouse.
+
+def _win32():
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.WinDLL("user32", use_last_error=True)
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    try:
+        u.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))  # per-monitor v2: physical pixels everywhere
+    except (AttributeError, OSError) as e:
+        print("note: DPI awareness not set: " + str(e))
+    u.WindowFromPoint.argtypes = [wintypes.POINT]
+    u.WindowFromPoint.restype = wintypes.HWND
+    u.GetAncestor.restype = wintypes.HWND
+    u.GetForegroundWindow.restype = wintypes.HWND
+    return ctypes, wintypes, u, k
+
+
+def game_window(root):
+    """The largest visible top-level window of a process whose exe lies under the slot root, or None."""
+    ctypes, wintypes, u, k = _win32()
+    root = os.path.normcase(os.path.abspath(root))
+    found = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def each(hwnd, _):
+        if not u.IsWindowVisible(hwnd):
+            return True
+        pid = wintypes.DWORD()
+        u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        h = k.OpenProcess(0x1000, False, pid.value)
+        if not h:
+            return True
+        buf = ctypes.create_unicode_buffer(1024)
+        n = wintypes.DWORD(1024)
+        ok = k.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n))
+        k.CloseHandle(h)
+        if ok and os.path.normcase(buf.value).startswith(root + os.sep):
+            rc = wintypes.RECT()
+            u.GetClientRect(hwnd, ctypes.byref(rc))
+            found.append((rc.right * rc.bottom, hwnd, rc.right, rc.bottom, pid.value))
+        return True
+
+    u.EnumWindows(each, 0)
+    found.sort(reverse=True)
+    return found[0][1:] if found and found[0][0] > 0 else None
+
+
+def real_click(root, ux, uy, sw, sh, hold_s=0.2):
+    """Clicks at Unity screen point (ux, uy) (origin bottom left) of the game under root. Returns (ok, detail)."""
+    ctypes, wintypes, u, k = _win32()
+    win = game_window(root)
+    if not win:
+        return False, "no game window with an exe under " + root
+    hwnd, cw, ch, pid = win
+    # Bring the game forward. A tap of Alt lets this process take the foreground (Windows foreground lock).
+    u.keybd_event(0x12, 0, 0, 0)
+    u.SetForegroundWindow(hwnd)
+    u.keybd_event(0x12, 0, 2, 0)
+    time.sleep(0.4)
+    fg = u.GetForegroundWindow()
+    if fg != hwnd:
+        return False, f"the game window is not in the foreground (fg={fg} game={hwnd} pid={pid})"
+    pt = wintypes.POINT(int(round(ux * cw / sw)), int(round(ch - uy * ch / sh)))
+    u.ClientToScreen(hwnd, ctypes.byref(pt))
+    hit = u.GetAncestor(u.WindowFromPoint(pt), 2)
+    if hit != hwnd:
+        return False, f"point {pt.x},{pt.y} lies over another window ({hit}), not the game ({hwnd})"
+    u.SetCursorPos(pt.x, pt.y)
+    time.sleep(0.15)  # hover first, as a player does; uGUI raises pointer enter
+    u.mouse_event(0x0002, 0, 0, 0, 0)  # left down
+    time.sleep(hold_s)  # held across several frames and at least one state push interval
+    u.mouse_event(0x0004, 0, 0, 0, 0)  # left up
+    time.sleep(0.6)
+    return True, f"screen {pt.x},{pt.y} client {cw}x{ch} unity {sw}x{sh} pid {pid}"
+
+
+def slot_root(slot):
+    sys.path.insert(0, os.path.dirname(S1))
+    import s1 as bridge
+    name = slot or bridge.my_slot()
+    return name, (bridge.SLOTS[name][1] if name in bridge.SLOTS else None)
+
+
+def real_mouse_section(slot):
+    name, root = slot_root(slot)
+    if not root:
+        check("real mouse: slot root known", False, f"slot {name!r}")
+        return
+    for n in (1, 2):  # twice: Start then Stop, so sampling ends where it began
+        ok, out = run(slot, "snitch where run", r"where run x=|no element|no size|not mounted|not expanded|unknown")
+        m = re.search(r"where run x=(-?\d+) y=(-?\d+) w=(\d+) h=(\d+) screen=(\d+)x(\d+)", out)
+        if m and (int(m.group(3)) <= 0 or int(m.group(4)) <= 0):
+            m = None
+        check(f"real mouse {n}: 'snitch where run' finds the Start/Stop button on screen (DEBUG build)", m is not None, out)
+        if not m:
+            return
+        x, y, w, h, sw, sh = (int(v) for v in m.groups())
+        code, before = s1(slot, "log", "-n", "300", "--grep", "overlay")
+        ok, detail = real_click(root, x, y, sw, sh)
+        check(f"real mouse {n}: cursor pressed and released over the game window", ok, detail)
+        if not ok:
+            return
+        code, after = s1(slot, "log", "-n", "300", "--grep", "overlay")
+        seen = set(before.splitlines())
+        new = [l for l in after.splitlines() if l not in seen]
+        hits = [l for l in new if "[overlay] sampling" in l]
+        held = [l for l in new if "state push held" in l]
+        check(f"real mouse {n}: the click on Start/Stop reached the host", bool(hits),
+              (hits[-1] if hits else "new overlay lines: " + " | ".join(new[-4:])) + (" (push held)" if held else ""))
+
+
 def windows_section(slot):
     """Expanded mode is running. Starts from the default layout and leaves the default layout behind."""
     ok, out = run(slot, "snitch layout reset", r"layout reset")
@@ -227,9 +344,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--slot", default=None)
     ap.add_argument("--open-max-ms", type=float, default=50.0)
+    ap.add_argument("--mouse-only", action="store_true",
+                    help="only the real-mouse section; works without eval (Release Sideload, profile main)")
     a = ap.parse_args()
     slot = a.slot
     open_max_ms = a.open_max_ms
+
+    if a.mouse_only:
+        ok, out = run(slot, "snitch open all", r"\[overlay\]")
+        check("snitch open all -> expanded", ok, out)
+        time.sleep(1.0)
+        real_mouse_section(slot)
+        ok, out = run(slot, "snitch close", r"\[overlay\] (hidden|already hidden)")
+        check("snitch close -> hidden", ok, out)
+        failed = results.count(False)
+        print(f"{len(results) - failed}/{len(results)} PASS")
+        return 1 if failed else 0
 
     ok, out = run(slot, "snitch start", r"(?i)sampl|start")
     check("snitch start", ok, out)
@@ -409,6 +539,8 @@ def main():
     code2, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
     check("click Start/Stop reaches the host", code == 0 and "[overlay] sampling" in log, out)
     shot(slot, "expanded")
+
+    real_mouse_section(slot)
 
     code, out = s1(slot, "click", APP, ".segbtn[data-w='10']")
     code2, log = s1(slot, "log", "-n", "600", "--grep", "overlay")

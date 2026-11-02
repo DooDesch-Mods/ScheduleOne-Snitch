@@ -214,6 +214,17 @@ namespace Snitch.UI
             // Not on every frame: the page rebuilds on a changed value, and the numbers only move per poll.
             if (!_dirty && now - _lastEmit < 1.0 / Math.Max(1f, Preferences.PollHz)) return;
 
+            // A changed value lays the page out again and replaces the pressed uGUI button, which then raises no
+            // click on release. While the left mouse button is held over the open overlay the push waits.
+            if (_mode == OverlayMode.Expanded && (Input.GetMouseButton(0) || Input.GetMouseButtonUp(0)))
+            {
+                if (!_pushHeld) Core.Log?.Msg("[overlay] state push held while the mouse button is down.");
+                _pushHeld = true;
+                _dirty = true;
+                return;
+            }
+            _pushHeld = false;
+
             _lastEmit = now;
             _dirty = false;
             Push();
@@ -587,6 +598,50 @@ namespace Snitch.UI
         }
 
         /// <summary>Clears the remembered layout and, when the page is up, tells it to lay its windows out again.</summary>
+#if DEBUG
+        /// <summary>
+        /// Screen position of a page element, for the real-mouse check: finds the painted object named
+        /// <c>tag#id</c> under the overlay canvas and returns its centre in Unity screen pixels (origin bottom left).
+        /// </summary>
+        internal static string Where(string id)
+        {
+            if (_root == null) return "overlay not mounted";
+            if (_mode != OverlayMode.Expanded) return "overlay is " + _mode + ", not expanded";
+            string suffix = "#" + id;
+            int matches = 0;
+            string first = "";
+            Vector2 bestA = default, bestB = default;
+            float bestArea = 0f;
+            foreach (var rt in _root.GetComponentsInChildren<RectTransform>(false))
+            {
+                if (rt == null || !rt.gameObject.name.EndsWith(suffix, StringComparison.Ordinal)) continue;
+                matches++;
+                if (first.Length == 0)
+                    first = " (rect=" + rt.rect + " lossyScale=" + rt.lossyScale + " pos=" + rt.position
+                        + " rootScale=" + _root.transform.lossyScale + " path=" + PathOf(rt.transform) + ")";
+                // No GetWorldCorners: under IL2CPP the managed array is copied into the call and comes back unfilled.
+                Rect r = rt.rect;
+                Vector2 a = RectTransformUtility.WorldToScreenPoint(null, rt.TransformPoint(new Vector3(r.xMin, r.yMin, 0f)));
+                Vector2 b = RectTransformUtility.WorldToScreenPoint(null, rt.TransformPoint(new Vector3(r.xMax, r.yMax, 0f)));
+                float area = (b.x - a.x) * (b.y - a.y);
+                if (area > bestArea) { bestArea = area; bestA = a; bestB = b; }
+            }
+            if (matches == 0) return "no element '" + suffix + "' under the overlay";
+            if (bestArea <= 0f) return "element '" + suffix + "' found " + matches + " time(s) but has no size on screen" + first;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            return string.Format(inv, "where {0} x={1:F0} y={2:F0} w={3:F0} h={4:F0} screen={5}x{6} matches={7}",
+                id, (bestA.x + bestB.x) / 2f, (bestA.y + bestB.y) / 2f, bestB.x - bestA.x, bestB.y - bestA.y,
+                Screen.width, Screen.height, matches);
+        }
+
+        private static string PathOf(Transform t)
+        {
+            string path = t.name;
+            for (int i = 0; i < 6 && t.parent != null; i++) { t = t.parent; path = t.name + "/" + path; }
+            return path;
+        }
+#endif
+
         internal static void ResetLayout(string why)
         {
             OverlayLayout.Reset();
@@ -618,10 +673,19 @@ namespace Snitch.UI
         }
 
         private static bool _moveHeld;
+        private static bool _pushHeld;
 
         private static string Call(string name, Func<string> body)
         {
-            try { return body(); }
+            try
+            {
+                string result = body();
+#if DEBUG
+                // Shows that a page event reached the host; the overlay check reads it after a real mouse click.
+                if (name != "page.log") Core.Log?.Msg("[overlay] call '" + name + "' answered " + result);
+#endif
+                return result;
+            }
             catch (Exception e)
             {
                 Core.Log?.Error("[overlay] call '" + name + "' failed: " + e.Message);

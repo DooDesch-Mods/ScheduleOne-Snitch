@@ -65,6 +65,12 @@ button { font-family: "Barlow"; }
 .dnf { opacity: 0.55; }
 
 .empty { color: #4A5568; padding: 10px 0; }
+.chint { color: #4A5568; font-size: 13px; padding: 0 12px 2px 12px; white-space: nowrap; }
+
+/* The outline a window resize draws. It is sized once when the resize starts and then only scaled, which Sideload
+   repaints without laying the page out again; the window itself takes the new size on release. */
+.ghost { position: absolute; left: 0; top: 0; width: 100px; height: 100px; display: none; transform-origin: 0 0;
+         background-color: rgba(20, 33, 61, 0.18); pointer-events: none; }
 
 .foot { height: 12px; flex-shrink: 0; }
 .strip { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 0 12px 8px 12px; }

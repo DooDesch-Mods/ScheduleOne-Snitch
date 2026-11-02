@@ -127,12 +127,18 @@
     host.setAttribute('data-scale', String(scale));
 
     if (riders.length === 0) {
+      // Start/Stop lives in the expanded view, so compact points at the key that opens it.
+      var msg = st.active ? 'No sections reported yet.'
+        : st.mode === 'expanded' ? 'Sampling is stopped. Press Start.'
+        : 'Sampling stopped - ' + st.key + ' to open';
       if (!host.getAttribute('data-empty')) {
         host.replaceChildren();
-        host.appendChild(el('div', 'empty', st.active ? 'No sections reported yet.' : 'Sampling is stopped. Press Start.'));
+        host.appendChild(el('div', 'empty', msg));
         host.setAttribute('data-empty', '1');
         rowEls = {};
         lastOrder = [];
+      } else if (host.firstChild) {
+        setText(host.firstChild, msg);
       }
       return;
     }
@@ -198,6 +204,7 @@
   var zTop = 10;
   var seq = 0;          // numbers the windows, so scripted checks can address them by id
   var drag = null;
+  var flushHeld = function () {};
   var lastVw = 0;
   var lastVh = 0;
   var curMode = '';
@@ -340,10 +347,14 @@
     if (!cur) return;
     drag = { w: w, kind: kind, src: src, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, r: cur, v: viewport(),
              compact: compact, last: null };
+    if (kind === 'size') showGhost(cur);
     try { src.setPointerCapture(ev.pointerId); }
     catch (e) { call('page.log', 'pointer capture failed: ' + e); }
   }
 
+  // While a pointer is held only paint-only properties change: a move shifts the window with `transform`, a resize
+  // scales the ghost outline. Sideload repaints those boxes without laying the page out again. Left, bottom, width
+  // and height are written once, on release, together with the layout.
   function moveDrag(ev, src) {
     if (!drag || drag.src !== src) return;
     if (ev.buttons !== undefined && !(ev.buttons & 1)) { endDrag(); return; }
@@ -357,7 +368,22 @@
     else r = { x: r0.x, y: r0.y, w: Math.min(r0.w + dx, vw - r0.x), h: Math.min(r0.h + dy, vh - r0.y) };
     r = clampRect(r, drag.w.id, vw, vh, drag.compact);
     drag.last = r;
-    paint(drag.w.id, r, vh, drag.compact);
+    if (drag.kind === 'move') {
+      drag.w.el.style.transform = 'translate(' + (r.x - r0.x) + 'px, ' + (r.y - r0.y) + 'px)';
+    } else {
+      $('ghost').style.transform = 'scale(' + (r.w / r0.w) + ', ' + (r.h / r0.h) + ')';
+    }
+  }
+
+  function showGhost(r) {
+    var g = $('ghost').style;
+    g.left = r.x + 'px';
+    g.top = r.y + 'px';
+    g.width = r.w + 'px';
+    g.height = r.h + 'px';
+    g.transform = 'none';
+    g.zIndex = String(zTop + 1);
+    g.display = 'block';
   }
 
   function endDrag() {
@@ -365,17 +391,22 @@
     var d = drag;
     drag = null;
     if (d.src.hasPointerCapture && d.src.hasPointerCapture(d.pid)) d.src.releasePointerCapture(d.pid);
-    if (!d.last) return;
-    var vw = d.v.w;
-    var vh = d.v.h;
-    var r = d.last;
-    if (d.compact) {
-      layout.c = { x: r.x / vw, y: (vh - r.y - r.h) / vh, w: 0, h: 0, v: 1 };
-    } else {
-      var open = isOpen(d.w.id) ? 1 : 0;
-      layout[d.w.id] = { x: r.x / vw, y: r.y / vh, w: r.w / vw, h: r.h / vh, v: open };
+    if (d.kind === 'move') d.w.el.style.transform = 'none';
+    else $('ghost').style.display = 'none';
+    if (d.last) {
+      var vw = d.v.w;
+      var vh = d.v.h;
+      var r = d.last;
+      paint(d.w.id, r, vh, d.compact);
+      if (d.compact) {
+        layout.c = { x: r.x / vw, y: (vh - r.y - r.h) / vh, w: 0, h: 0, v: 1 };
+      } else {
+        var open = isOpen(d.w.id) ? 1 : 0;
+        layout[d.w.id] = { x: r.x / vw, y: r.y / vh, w: r.w / vw, h: r.h / vh, v: open };
+      }
+      saveLayout();
     }
-    saveLayout();
+    flushHeld();
   }
 
   function attach(w) {
@@ -670,7 +701,10 @@
     setShow($('strip'), expanded);
     setShow($('grip'), expanded);
     setShow($('closecard'), expanded);
-    setShow($('toggle'), !expanded);
+    // Compact keeps the cursor locked, so it shows nothing to click: the controls live in the expanded view.
+    setShow($('winbar'), expanded);
+    setShow($('toggle'), false);
+    setShow($('chint'), !expanded);
     placeCard();
     showWindows();
     if (expanded) front('standings');
@@ -698,6 +732,7 @@
     setCls($('phone'), phoneOn ? 'btn on' : 'btn');
     setText($('phone'), phoneOn ? 'Phone on' : 'Phone');
     setText($('hint'), st.bad > 0 ? st.bad + ' spike frames in unattributed work' : 'Key ' + st.key);
+    setText($('chint'), st.key + ' to open · hold Alt to move');
     var showPair = expanded && st.phone && st.phone.on && st.phone.qr;
     setShow($('pair'), showPair);
     if (showPair) setText($('pairu'), st.phone.url);
@@ -709,12 +744,27 @@
     else dragging = false;
   }
 
+  function renderSafe(st) {
+    try { if (st) render(st); }
+    catch (e) { call('page.log', 'render failed: ' + e); }
+  }
+
+  // A state that arrives while a window is held waits for the release: every changed number would lay the page out
+  // again, which is the cost the drag avoids.
+  var heldState = null;
+  flushHeld = function () {
+    if (!heldState) return;
+    var st = heldState;
+    heldState = null;
+    renderSafe(st);
+  };
+
   s1.on('state', function (payload) {
     var st;
     try { st = typeof payload === 'string' ? JSON.parse(payload) : payload; }
     catch (e) { call('page.log', 'bad state payload: ' + e); return; }
-    try { if (st) render(st); }
-    catch (e2) { call('page.log', 'render failed: ' + e2); }
+    if (drag) { heldState = st; return; }
+    renderSafe(st);
   });
 
   call('page.ready');

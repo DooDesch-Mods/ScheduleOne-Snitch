@@ -21,8 +21,8 @@ namespace Snitch.UI
     /// Snitch's in-game surface: a Sideload page on its own screen-space overlay canvas, drawn after the game's
     /// post-processing. Compact is drawn bottom-left above the hotbar with the top riders and the unattributed row;
     /// its canvas has the raycaster switched off, so clicks reach the game. Expanded adds the sampling controls, the
-    /// phone pairing and every mod's panel, enables the raycaster and frees the cursor. Nothing is mounted while
-    /// hidden.
+    /// phone pairing and every mod's panel, enables the raycaster and frees the cursor. The page is built once
+    /// in the background after the save loads and its root is switched off while hidden, so opening only switches it on.
     /// </summary>
     internal static class Overlay
     {
@@ -125,7 +125,7 @@ namespace Snitch.UI
 
             if (mode == OverlayMode.Hidden)
             {
-                Unmount();
+                Hide();
                 _mode = mode;
                 Core.Log?.Msg("[overlay] hidden (" + why + ").");
                 return true;
@@ -138,14 +138,24 @@ namespace Snitch.UI
                 return false;
             }
 
-            if (!Surfaces.IsMounted(SurfaceId) && !Mount()) return false;
+            bool wasHidden = _mode == OverlayMode.Hidden;
+            if (!Surfaces.IsMounted(SurfaceId))
+            {
+                Core.Log?.Msg("[overlay] no page built in the background, mounting it now.");
+                if (!Mount(background: false)) return false;
+            }
+            bool ready = wasHidden && mode == OverlayMode.Compact && _prep == Prep.Done && _pageCurrent;
+            Show();
+            if (wasHidden) { _openAt = Time.realtimeSinceStartup; _openFrames = 0; _openWorst = 0f; }
+            _pageCurrent = false;
+            _pushAtFrame = ready ? Time.frameCount + 2 : -1;
 
             _mode = mode;
             _moveHeld = false;
             if (_raycaster != null) _raycaster.enabled = mode == OverlayMode.Expanded;
             if (mode == OverlayMode.Expanded) OverlayInput.Free();
             else OverlayInput.Restore("compact");
-            _dirty = true;
+            _dirty = !ready;
             Core.Log?.Msg("[overlay] " + mode.ToString().ToLowerInvariant() + " (" + why + ").");
             return true;
         }
@@ -161,8 +171,13 @@ namespace Snitch.UI
             double now = Time.realtimeSinceStartupAsDouble;
             if (Standings.Pull(now)) _dirty = true;
 
-            if (_mode == OverlayMode.Hidden) return;
+            if (_mode == OverlayMode.Hidden)
+            {
+                TickBackground();
+                return;
+            }
 
+            TickOpenCost();
             TickMoveHold();
 
             // The game locked the cursor again (its own menu closed, a scene loaded): stop holding it.
@@ -186,6 +201,13 @@ namespace Snitch.UI
                     SetMode(keep, "remount");
                     return;
                 }
+            }
+
+            if (_pushAtFrame >= 0)
+            {
+                if (Time.frameCount < _pushAtFrame) return;
+                _pushAtFrame = -1;
+                _dirty = true;
             }
 
             if (!_dirty && now - _lastEmit < EmitEvery) return;
@@ -223,7 +245,9 @@ namespace Snitch.UI
 
         // ----- mounting -----
 
-        private static bool Mount()
+        /// <summary>Mounts the page. In the background the canvas draws at alpha 0 and takes no clicks, so the fonts load
+        /// and the first build runs while the player sees nothing; TickBackground then switches the root off.</summary>
+        private static bool Mount(bool background)
         {
             try
             {
@@ -236,6 +260,13 @@ namespace Snitch.UI
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 // Above the game's HUD, below a Sideload notice or the phone.
                 canvas.sortingOrder = 29000;
+
+                // The page has to be active to be built (TextMeshPro measures text only after its Awake), so the
+                // background build hides it by alpha instead.
+                _group = _root.AddComponent<CanvasGroup>();
+                _group.alpha = background ? 0f : 1f;
+                _group.blocksRaycasts = !background;
+                _group.interactable = !background;
 
                 // A fixed 1920x1080 reference, so the panel keeps its share of the screen at any resolution.
                 var scaler = _root.AddComponent<CanvasScaler>();
@@ -271,7 +302,11 @@ namespace Snitch.UI
                 }
 
                 _qrUrl = "\u0001";   // forces the next Push to publish the picture again
-                Core.Log?.Msg("[overlay] surface '" + SurfaceId + "' mounted.");
+                _prep = background ? Prep.Building : Prep.Done;
+                _settleIsHide = false;
+                _prepStart = Time.realtimeSinceStartup;
+                _prepPushFrame = -1;
+                Core.Log?.Msg("[overlay] surface '" + SurfaceId + "' mounted" + (background ? " in the background." : "."));
                 return true;
             }
             catch (Exception e)
@@ -297,13 +332,177 @@ namespace Snitch.UI
             _root = null;
             _raycaster = null;
             _surface = null;
+            _group = null;
+            _pageReady = false;
+            _pageCurrent = false;
+            _pushAtFrame = -1;
+            _prep = Prep.None;
+        }
+
+        // ----- background build, show, hide -----
+
+        private enum Prep { None, Building, Done }
+
+        private static CanvasGroup _group;
+        private static Prep _prep = Prep.None;
+        private static bool _pageReady;
+        private static float _prepStart;
+        private static int _prepPushFrame = -1;
+        private static bool _prepFailed;
+        private static bool _prepSkipLogged;
+        // The settle in progress follows a hide rather than the first build (only the log line differs).
+        private static bool _settleIsHide;
+        // The switched-off page already shows the compact layout with recent numbers.
+        private static bool _pageCurrent;
+        // After such an open the next state push waits for this frame, so switching the page on and laying out
+        // the new numbers do not land in the same frame.
+        private static int _pushAtFrame = -1;
+        private static float _openAt = -1f;
+        private static int _openFrames;
+        private static float _openWorst;
+        private static float _openSwitch;
+        // The first frames after an open, before the deferred state push (Tick pushes two frames later and Sideload
+        // lays it out on its next tick).
+        private const int SwitchOnFrames = 3;
+        private static readonly System.Text.StringBuilder _openList = new System.Text.StringBuilder();
+
+        // Frames between the state push and switching the page off: the push queues a rebuild, which Sideload runs on
+        // its next tick.
+        private const int PrepSettleFrames = 3;
+        private const float PrepTimeout = 15f;
+        // Frames after an open whose worst time is logged as the cost of opening.
+        private const int OpenCostFrames = 10;
+
+        /// <summary>While hidden: builds the page once in the background (fonts, first layout, the current standings),
+        /// then switches its root off. An inactive root costs Sideload nothing per frame and catches no input, and the
+        /// overlay key only switches it on again.</summary>
+        private static void TickBackground()
+        {
+            if (_prep == Prep.Done || _prepFailed) return;
+
+            if (_prep == Prep.None)
+            {
+                if (!Preferences.Enabled)
+                {
+                    if (!_prepSkipLogged) Core.Log?.Msg("[overlay] overlay disabled in the preferences, no background build.");
+                    _prepSkipLogged = true;
+                    return;
+                }
+                if (!Surfaces.Available)
+                {
+                    _prepFailed = true;
+                    Core.Log?.Warning("[overlay] Sideload is not available, no background build; the overlay key will report it.");
+                    return;
+                }
+                if (!Mount(background: true))
+                {
+                    _prepFailed = true;
+                    Core.Log?.Warning("[overlay] the background build could not mount the page; the overlay key mounts it on demand.");
+                }
+                return;
+            }
+
+            // Building.
+            if (Time.realtimeSinceStartup - _prepStart > PrepTimeout)
+            {
+                Core.Log?.Warning("[overlay] the background build did not report ready within " + PrepTimeout
+                                + " s; switching the page off anyway, the next open rebuilds it.");
+                FinishBackground();
+                return;
+            }
+            if (!_pageReady)
+            {
+                return;
+            }
+            if (_prepPushFrame < 0)
+            {
+                Push();
+                _prepPushFrame = Time.frameCount;
+                return;
+            }
+            if (Time.frameCount - _prepPushFrame < PrepSettleFrames) return;
+            FinishBackground();
+        }
+
+        private static void FinishBackground()
+        {
+            _prep = Prep.Done;
+            _pageCurrent = _pageReady;
+            if (_root != null) _root.SetActive(false);
+            if (_group != null) { _group.alpha = 1f; _group.blocksRaycasts = true; _group.interactable = true; }
+            string ms = ((Time.realtimeSinceStartup - _prepStart) * 1000f).ToString("0", Inv);
+            Core.Log?.Msg(_settleIsHide
+                ? "[overlay] page set to compact and switched off in " + ms + " ms."
+                : "[overlay] page built in the background in " + ms + " ms, switched off until opened.");
+        }
+
+        private static void Show()
+        {
+            if (_prep == Prep.Building)
+            {
+                _prep = Prep.Done;
+                Core.Log?.Msg(_settleIsHide
+                    ? "[overlay] opened again before the page was switched off."
+                    : "[overlay] opened before the background build finished; it completes visibly.");
+            }
+            if (_group != null) { _group.alpha = 1f; _group.blocksRaycasts = true; _group.interactable = true; }
+            if (_root != null && !_root.activeSelf) _root.SetActive(true);
+        }
+
+        /// <summary>Hides without unmounting. The page first takes the compact state while invisible (alpha 0, no
+        /// clicks), then TickBackground switches its root off, so the next open finds the page already laid out and
+        /// only switches it on.</summary>
+        private static void Hide()
+        {
+            _moveHeld = false;
+            _pushAtFrame = -1;
+            _pageCurrent = false;
+            if (_raycaster != null) _raycaster.enabled = false;
+            OverlayInput.Restore("hidden");
+            _openAt = -1f;
+            if (_root == null) return;
+
+            if (_pageReady && _group != null)
+            {
+                _group.alpha = 0f;
+                _group.blocksRaycasts = false;
+                _group.interactable = false;
+                _prep = Prep.Building;
+                _settleIsHide = true;
+                _prepStart = Time.realtimeSinceStartup;
+                _prepPushFrame = -1;
+                return;
+            }
+            Core.Log?.Msg("[overlay] the page never reported ready, switching it off without the compact reset.");
+            _root.SetActive(false);
+        }
+
+        /// <summary>Logs the worst frame time of the first frames after an open, the hitch the player feels.</summary>
+        private static void TickOpenCost()
+        {
+            if (_openAt < 0f) return;
+            // The frame that ran SetMode is not part of it; the next ones carry the page's rebuild.
+            if (_openFrames == 0) { _openList.Clear(); _openSwitch = 0f; }
+            else
+            {
+                float ms = Time.unscaledDeltaTime * 1000f;
+                _openWorst = Mathf.Max(_openWorst, ms);
+                if (_openFrames <= SwitchOnFrames) _openSwitch = Mathf.Max(_openSwitch, ms);
+                _openList.Append(_openList.Length == 0 ? "" : " ").Append(ms.ToString("0", Inv));
+            }
+            if (++_openFrames <= OpenCostFrames) return;
+            // Switch-on: the frames before the first state push lands, i.e. showing the page that was already built.
+            // The rest of the window also holds the page's regular rebuilds for new numbers.
+            Core.Log?.Msg("[overlay] open cost: switch-on " + _openSwitch.ToString("0.0", Inv) + " ms, worst of the next "
+                        + OpenCostFrames + " frames " + _openWorst.ToString("0.0", Inv) + " ms (" + _openList + ").");
+            _openAt = -1f;
         }
 
         // ----- page calls -----
 
         private static void RegisterCalls(SurfaceHandle s)
         {
-            s.OnCall("page.ready", _ => Call("page.ready", () => { _dirty = true; _qrUrl = "\u0001"; return "ok"; }));
+            s.OnCall("page.ready", _ => Call("page.ready", () => { _dirty = true; _qrUrl = "\u0001"; _pageReady = true; return "ok"; }));
             s.OnCall("page.log", a => Call("page.log", () => { Core.Log?.Warning("[overlay] page: " + a); return "ok"; }));
             s.OnCall("layout.get", _ => Call("layout.get", () => OverlayLayout.Value));
             s.OnCall("layout.set", a => Call("layout.set", () => OverlayLayout.Store(a) >= 0 ? "ok" : "bad"));

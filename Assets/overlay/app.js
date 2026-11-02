@@ -1,6 +1,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var ROW_H = 34;
+  var NAME_MAX = 30;    // character budget of the name column, so a row never wraps
   var rowEls = {};      // rider key -> { el, ... }
   var lastOrder = [];
   var panelEls = {};    // panel id -> element
@@ -71,7 +72,8 @@
     setCls(o.el, r.dnf ? 'row dnf' : 'row');
     setText(o.bib, String(r.bib));
     o.bib.style.backgroundColor = r.c;
-    setText(o.name, r.g + (r.n && r.n !== r.g ? ' ' + r.n : ''));
+    var full = r.g + (r.n && r.n !== r.g ? ' ' + r.n : '');
+    setText(o.name, full.length > NAME_MAX ? full.substring(0, NAME_MAX - 3) + '...' : full);
     var w = r.dnf ? 0 : Math.max(0.5, Math.min(100, (r.ms / scale) * 100));
     o.fill.style.width = w + '%';
     o.fill.style.backgroundColor = r.c;
@@ -337,6 +339,8 @@
     if (showPair) setText($('pairu'), st.phone.url);
 
     renderRows(st);
+    setText($('morerows'), st.more > 0 ? '+' + st.more + ' more' : '');
+    setShow($('morerows'), st.more > 0);
     setShow($('more'), expanded);
     if (expanded) renderPanels(st);
     else dragging = false;

@@ -34,6 +34,10 @@ namespace Snitch.UI
         private const float HostWidth = 760f;
         private const float HostMargin = 24f;
         private const float HostTopAnchor = 0.92f;
+        // The vanilla hotbar occupies the bottom ~10% of the screen; the card's bottom edge stays above it (1080 reference px).
+        private const float HostBottom = 124f;
+        // Expanded standings are capped so the mod panels below stay on screen; the rest is a "+N more" line.
+        private const int ExpandedRows = 10;
 
         private const double EmitEvery = 0.25;
 
@@ -189,7 +193,7 @@ namespace Snitch.UI
                 rect.anchorMax = new Vector2(0f, HostTopAnchor);
                 rect.pivot = new Vector2(0f, 0f);
                 rect.sizeDelta = new Vector2(HostWidth, 0f);
-                rect.anchoredPosition = new Vector2(HostMargin, HostMargin);
+                rect.anchoredPosition = new Vector2(HostMargin, HostBottom);
 
                 _surface = Surfaces.Mount(rect, SurfaceId, Bundle, designShortSide: HostWidth,
                                           hostAssembly: typeof(Overlay).Assembly);
@@ -356,15 +360,16 @@ namespace Snitch.UI
             double leader = riders.Count > 0 && !riders[0].Dnf ? riders[0].Ms : 0;
             Num(sb, "scale", Standings.NiceCeil(leader));
 
-            // Compact shows the top three and the unattributed row; expanded shows every rider.
+            // Compact shows the top three and the unattributed row; expanded the top ten and the unattributed row.
             sb.Append(",\"riders\":[");
             bool first = true;
             int shown = 0;
+            int hidden = 0;
             for (int i = 0; i < riders.Count; i++)
             {
                 Rider r = riders[i];
                 bool unattr = Identity.IsUnattributed(r.Group);
-                if (!expanded && shown >= 3 && !unattr) continue;
+                if (!unattr && shown >= (expanded ? ExpandedRows : 3)) { hidden++; continue; }
                 if (!first) sb.Append(',');
                 first = false;
                 shown++;
@@ -384,6 +389,7 @@ namespace Snitch.UI
                 sb.Append('}');
             }
             sb.Append(']');
+            Num(sb, "more", hidden);
 
             // phone pairing
             sb.Append(",\"phone\":{\"on\":").Append(LanServer.Running ? "true" : "false");

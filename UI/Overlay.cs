@@ -93,6 +93,8 @@ namespace Snitch.UI
 
             _mode = mode;
             if (_raycaster != null) _raycaster.enabled = mode == OverlayMode.Expanded;
+            if (mode == OverlayMode.Expanded) OverlayInput.Free();
+            else OverlayInput.Restore("compact");
             _dirty = true;
             Core.Log?.Msg("[overlay] " + mode.ToString().ToLowerInvariant() + " (" + why + ").");
             return true;
@@ -110,6 +112,14 @@ namespace Snitch.UI
             if (Standings.Pull(now)) _dirty = true;
 
             if (_mode == OverlayMode.Hidden) return;
+
+            // The game locked the cursor again (its own menu closed, a scene loaded): stop holding it.
+            if (_mode == OverlayMode.Expanded && OverlayInput.LostToGame())
+            {
+                OverlayInput.Restore("game took the cursor");
+                SetMode(OverlayMode.Compact, "cursor");
+                return;
+            }
 
             // A scene change can destroy the host; the surface then reports itself unmounted.
             if (Time.realtimeSinceStartup - _lastMountCheck > 1f)
@@ -220,6 +230,7 @@ namespace Snitch.UI
 
         private static void Unmount()
         {
+            OverlayInput.Restore("unmount");
             try { if (Surfaces.Available) Surfaces.Unmount(SurfaceId); }
             catch (Exception e) { Core.Log?.Warning("[overlay] unmount failed: " + e.Message); }
 

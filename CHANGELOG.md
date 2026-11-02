@@ -2,6 +2,17 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [1.7.2] - 2026-11-02
+
+### Changed
+
+- License: DooDesch API License. Build on the API, copy only the API files; earlier releases stay MIT.
+- Decompiling is not permitted, except for the package review by Thunderstore and Nexus Mods. The source is on GitHub.
+
+### For mod authors
+
+- The [API reference](https://docs.doodesch.de/mods/snitch/api/) lists allowed values, units and an example for each call.
+
 ## [1.7.1] - 2026-10-16
 
 ### Fixed

@@ -17,7 +17,7 @@
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 [![Polyfill](https://polyfill.doomods.com/badge/snitch.svg)](https://polyfill.doomods.com/mod/snitch)
 
-[![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_Zmy0Rmd81vxzqdnzIqobzAEG/badge.svg)](https://mlvscan.com/attestations/att_Zmy0Rmd81vxzqdnzIqobzAEG)
+[![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO/badge.svg)](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO)
 
 **[Live dashboard](https://snitch.doodesch.de)** · **[Documentation](https://docs.doodesch.de/mods/snitch/)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Dashboard source](https://github.com/DooDesch-Mods/ScheduleOne-SnitchWeb)** · **[Support](https://support.doodesch.de/snitch)**
 

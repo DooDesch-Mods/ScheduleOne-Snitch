@@ -8,7 +8,6 @@ using Snitch.Server;
 
 [assembly: MelonInfo(typeof(Snitch.Core), "Snitch", DooDesch.ModVersion.Current, "DooDesch", "https://github.com/DooDesch-Mods/ScheduleOne-Snitch")]
 [assembly: MelonGame("TVGS", "Schedule I")]
-[assembly: MelonOptionalDependencies("Hotline")]
 
 namespace Snitch
 {
@@ -39,17 +38,6 @@ namespace Snitch
             // Publish the modder API bridge as early as possible so other mods' Snitch.Api calls bind.
             Snitch.Bridge.BridgeHost.Install();
 
-            // Snitch's own in-game surface is now a Hotline panel (the overlay lives in the Hotline framework): the
-            // profiler overview as a text readout plus sampling controls. Load-order-proof; a no-op if Hotline is absent.
-            Hotline.Api.Hud.RegisterPanel(SnitchConsole.PanelId, "Snitch (Profiler)")
-                .Text(Snitch.UI.ProfilerHud.BuildOverview)
-                .Action("Start sampling", SnitchCore.Start)
-                .Action("Stop sampling", SnitchCore.Stop)
-                .Action("Reset", () => { SnitchCore.Stop(); SnitchCore.Start(); })
-                .Action("Open dashboard", OpenDashboard)
-                .Toggle("Phone remote (scan the QR)", () => LanServer.Running, SetLanRemote)
-                .Image(Snitch.UI.QrImage.Build);
-
             // Nothing registers `snitch` with the game - the prefix below answers it - so no command list, help
             // overlay or autocomplete can learn the word exists. One call puts it in the game's own list.
             HashCommands.Add("snitch", "profiler: start, stop, top, unattributed, patches, states, report", "snitch start");
@@ -76,6 +64,12 @@ namespace Snitch
                     + " - profiler. Console: 'snitch start' to begin, 'snitch help' for commands.");
         }
 
+        // Every melon is registered by now, so Sideload is visible to the version check.
+        public override void OnLateInitializeMelon()
+        {
+            Snitch.UI.Overlay.CheckSideloadVersion();
+        }
+
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             _inWorld = sceneName == "Main";
@@ -93,18 +87,21 @@ namespace Snitch
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
             _inWorld = false;
+            Snitch.UI.Overlay.SceneChanged();
         }
 
         public override void OnUpdate()
         {
             SnitchServer.Pump();   // drain dashboard control actions onto the main thread (cheap when idle)
+            if (_inWorld)
+            {
+                Snitch.UI.Overlay.ApplyPending();
+                Snitch.UI.Overlay.Tick();
+            }
             if (!_inWorld) return;
             if (Preferences.Enabled) SnitchCore.Tick();
         }
 
-        /// <summary>Turn the phone remote on/off from the in-game panel toggle. On = start the LAN endpoint AND a relay
-        /// session (so the QR works both on the same Wi-Fi and across networks) and persist the preference; off = stop
-        /// both. The relay E2E and the LAN shortcut share the LAN server's token, so one QR drives both.</summary>
         /// <summary>
         /// Opens the dashboard in the player's browser, from the panel button or 'snitch dashboard'.
         ///
@@ -145,10 +142,16 @@ namespace Snitch
             }
         }
 
-        private static void SetLanRemote(bool on)
+        /// <summary>Turn the phone remote on/off from the overlay toggle. On = start the LAN endpoint AND a relay
+        /// session (so the QR works both on the same Wi-Fi and across networks) and set the preference; off = stop
+        /// both. The relay E2E and the LAN shortcut share the LAN server's token, so one QR drives both.
+        /// The preference is only set, never saved here: MelonPreferences.Save() fires every mod's preference
+        /// listeners on this thread, and from a page callback that has killed the game. MelonLoader writes the
+        /// value on shutdown.</summary>
+        internal static void SetLanRemote(bool on)
         {
             Preferences.LanAccess = on;
-            try { MelonPreferences.Save(); } catch { }
+            Log.Msg("[snitch] phone remote " + (on ? "on" : "off") + " (preference set, written on shutdown)");
             if (on)
             {
                 if (!LanServer.Running) LanServer.Start(Preferences.LanPort);

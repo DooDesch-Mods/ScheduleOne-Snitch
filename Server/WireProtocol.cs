@@ -242,7 +242,7 @@ namespace Snitch.Server
             return v.ToString("0.###", Inv);
         }
 
-        private static string Esc(string s)
+        internal static string Esc(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
             StringBuilder b = null;

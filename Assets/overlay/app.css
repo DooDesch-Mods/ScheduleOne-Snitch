@@ -1,0 +1,115 @@
+/* Barlow and Barlow Condensed (SIL OFL, fonts/OFL-*.txt), the dashboard's faces. One file per weight. */
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-SemiBold.ttf"); font-weight: 600; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-SemiBold.ttf"); font-weight: 600; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Bold.ttf"); font-weight: 700; }
+
+html, body { height: 100%; margin: 0; padding: 0; background-color: transparent; font-family: "Barlow"; color: #14213D; font-size: 15px; }
+button { font-family: "Barlow"; }
+
+.root { height: 100%; }
+.grow { flex-grow: 1; }
+.desk { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+
+/* A window: navy title bar, scrolling body, a grip in the bottom-right corner. Position and size are set by script. */
+.win { position: absolute; background-color: #E6E9ED; border-radius: 4px; border: 1px solid #14213D; padding: 0; min-height: 0; overflow: hidden; }
+.win.compact { width: 760px; overflow: visible; }
+.wbar { flex-direction: row; align-items: center; background-color: #14213D; padding: 6px 8px 6px 12px; flex-shrink: 0; }
+.wtitle { flex-grow: 1; flex-shrink: 1; min-width: 0; height: 24px; overflow: hidden; white-space: nowrap; font-family: "Barlow Condensed"; color: #FFFFFF; font-weight: 700; font-size: 19px; letter-spacing: 1px; }
+.wbody { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0; overflow-y: auto; }
+.wbody.fit { flex-grow: 0; flex-basis: auto; overflow: visible; }
+.wclose { width: 26px; min-width: 26px; height: 26px; flex-shrink: 0; margin-left: 8px; padding: 0; border: 1px solid #7A88A8; border-radius: 4px; background-color: transparent; }
+.xa { position: absolute; left: 5px; top: 11px; width: 14px; height: 2px; background-color: #FFFFFF; transform: rotate(45deg); }
+.xb { position: absolute; left: 5px; top: 11px; width: 14px; height: 2px; background-color: #FFFFFF; transform: rotate(-45deg); }
+.grip { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; }
+.gl { position: absolute; right: 4px; bottom: 4px; width: 9px; height: 9px; border-right: 2px solid #14213D; border-bottom: 2px solid #14213D; }
+
+.head { flex-direction: row; align-items: center; background-color: #14213D; padding: 8px 8px 8px 12px; }
+.brand { font-family: "Barlow Condensed"; color: #FFFFFF; font-weight: 700; font-size: 22px; letter-spacing: 2px; margin-right: 12px; }
+.sum { white-space: nowrap; flex-shrink: 0; font-family: "Barlow Condensed"; color: #FFFFFF; font-weight: 600; font-size: 17px; margin-right: 12px; }
+
+.seg { flex-direction: row; margin-right: 8px; }
+.segbtn { font-family: "Barlow Condensed"; background-color: transparent; color: #DFE5F1; border: 1px solid #7A88A8; border-radius: 4px; padding: 3px 10px; margin-left: 4px; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.segbtn.on { background-color: #FFFFFF; border-color: #FFFFFF; color: #14213D; }
+
+.btn { font-family: "Barlow Condensed"; background-color: #FFFFFF; color: #14213D; border: 1px solid #14213D; border-radius: 4px; padding: 5px 12px; margin-right: 8px; font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+.btn.navy { background-color: #14213D; color: #FFFFFF; }
+.btn.ghost { background-color: #FFFFFF; margin-right: 0; padding: 3px 10px; font-size: 15px; }
+.btn.on { background-color: #14213D; color: #FFFFFF; }
+
+.ctl { flex-direction: row; align-items: center; padding: 8px 12px; }
+.hint { color: #4A5568; font-size: 13px; }
+
+.pair { flex-direction: row; align-items: center; padding: 8px 12px; background-color: #FFFFFF; border-top: 1px solid #E6E9ED; }
+.qr { width: 132px; height: 132px; color: #FFFFFF; }
+.pairtxt { margin-left: 12px; }
+.pairt { font-weight: 600; font-size: 15px; }
+.pairu { color: #4A5568; font-size: 13px; margin-top: 4px; }
+
+.rows { padding: 4px 12px 10px 12px; }
+.row { flex-direction: row; align-items: center; height: 34px; padding: 0 6px 0 0; transition: translate 180ms ease-out; }
+.row.lead { background-color: #FFF6CC; }
+.bib { width: 30px; min-width: 30px; flex-shrink: 0; height: 30px; padding: 2px; border: 1px solid #5B6573; border-radius: 4px; background-color: #FFFFFF; text-align: center; align-items: center; justify-content: center; margin-right: 8px; }
+.bibi { width: 24px; height: 24px; border-radius: 2px; font-family: "Barlow Condensed"; font-weight: 700; font-size: 17px; text-align: center; align-items: center; justify-content: center; }
+.name { width: 236px; min-width: 236px; flex-shrink: 0; height: 22px; overflow: hidden; white-space: nowrap; font-size: 15px; font-weight: 600; }
+.bar { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; height: 12px; background-color: #FFFFFF; border-radius: 4px; margin-right: 8px; }
+.fill { width: 100%; height: 12px; border-radius: 4px; transform-origin: 0 0; transform: scaleX(0.01); }
+.ms { font-family: "Barlow Condensed"; width: 96px; min-width: 96px; flex-shrink: 0; white-space: nowrap; text-align: right; font-weight: 700; font-size: 18px; }
+.gap { font-family: "Barlow Condensed"; width: 100px; min-width: 100px; flex-shrink: 0; align-items: flex-end; font-weight: 600; font-size: 16px; }
+.gt { white-space: nowrap; text-align: right; color: #4A5568; }
+.gt.red { color: #D7262E; font-weight: 700; }
+.gt.chip { background-color: #F2C200; color: #14213D; font-weight: 700; padding: 2px 6px; border-radius: 3px; letter-spacing: 1px; }
+.morerows { color: #4A5568; font-size: 14px; padding: 0 12px 10px 12px; }
+.mark { width: 8px; flex-shrink: 0; height: 26px; background-color: #F2C200; border-radius: 2px; margin-right: 6px; }
+.nomark { width: 8px; flex-shrink: 0; height: 26px; margin-right: 6px; }
+.dnf { opacity: 0.55; }
+
+.empty { color: #4A5568; padding: 10px 0; }
+.chint { color: #4A5568; font-size: 13px; padding: 0 12px 2px 12px; white-space: nowrap; }
+
+/* The outline a window resize draws. It is sized once when the resize starts and then only scaled, which Sideload
+   repaints without laying the page out again; the window itself takes the new size on release. */
+.ghost { position: absolute; left: 0; top: 0; width: 100px; height: 100px; display: none; transform-origin: 0 0;
+         background-color: rgba(20, 33, 61, 0.18); pointer-events: none; }
+
+.foot { height: 12px; flex-shrink: 0; }
+.strip { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 0 12px 8px 12px; }
+.striplab { font-family: "Barlow Condensed"; font-weight: 700; font-size: 16px; letter-spacing: 1px; margin-right: 8px; }
+.chips { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.btn.chip { padding: 2px 10px; margin-right: 6px; margin-bottom: 4px; font-size: 15px; }
+.btn.chip.on { background-color: #14213D; color: #FFFFFF; }
+.pbody { padding: 8px 10px 4px 10px; }
+.pbib { width: 24px; min-width: 24px; flex-shrink: 0; text-align: center; height: 22px; border-radius: 4px; font-family: "Barlow Condensed"; font-weight: 700; font-size: 16px; align-items: center; justify-content: center; margin-right: 8px; }
+.ptext { color: #4A5568; font-size: 14px; }
+.acts { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
+.tog { flex-direction: row; align-items: center; margin-top: 6px; }
+.togbox { width: 38px; height: 20px; border-radius: 4px; border: 1px solid #14213D; background-color: #FFFFFF; color: #14213D; font-family: "Barlow Condensed"; font-weight: 700; font-size: 14px; text-align: center; align-items: center; justify-content: center; margin-right: 8px; }
+.togbox.on { background-color: #14213D; color: #FFFFFF; }
+.slid { margin-top: 6px; }
+.slab { flex-direction: row; font-size: 14px; }
+.sval { margin-left: 8px; font-weight: 600; }
+.log { margin-top: 6px; border-top: 1px solid #E6E9ED; padding-top: 4px; }
+.ll { font-size: 13px; color: #4A5568; }
+.ll.w { color: #14213D; }
+.ll.e { color: #D7262E; }
+.states { margin-top: 4px; }
+.st { color: #4A5568; font-size: 14px; padding: 2px 0; }
+.note { color: #D7262E; font-size: 14px; font-weight: 600; padding: 4px 12px 0 12px; }
+
+/* Hover and press feedback. Only paint-only properties (background, border-color, outline, box-shadow): Sideload
+   answers those with a repaint, while anything else would lay the page out again under the pressed button and the
+   click would be lost. `color` is left alone for that reason. */
+.btn:hover { background-color: #D7DEEA; border-color: #3B5BA9; box-shadow: 0 0 0 1px #3B5BA9; }
+.btn:active { background-color: #BCC7DC; }
+.btn.navy:hover, .btn.on:hover { background-color: #2B4272; }
+.btn.navy:active, .btn.on:active { background-color: #0C1528; }
+.segbtn:hover { background-color: #3A4D78; border-color: #FFFFFF; }
+.segbtn:active { background-color: #566B9C; }
+.segbtn.on:hover { background-color: #E6E9ED; }
+.wclose:hover { background-color: #3A4D78; border-color: #FFFFFF; }
+.wclose:active { background-color: #566B9C; }
+.togbox:hover { background-color: #D7DEEA; box-shadow: 0 0 0 1px #3B5BA9; }
+.togbox:active { background-color: #BCC7DC; }
+.togbox.on:hover { background-color: #2B4272; }
+.wbar:hover { background-color: #1D2F57; }
+.head:hover { background-color: #1D2F57; }

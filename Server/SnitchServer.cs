@@ -49,6 +49,8 @@ namespace Snitch.Server
         }
 
         internal static bool Running => _running;
+        /// <summary>True when the last start attempt failed (the port is taken); cleared by the next attempt.</summary>
+        internal static bool Failed { get; private set; }
         /// <summary>The loopback port actually bound, for building the dashboard URL.</summary>
         internal static int Port => _port;
         internal static int SocketCount { get { lock (_lock) return _sockets.Count; } }
@@ -59,6 +61,7 @@ namespace Snitch.Server
             _port = port;
             _token = token ?? "";
             _origins = ParseOrigins(allowedOrigins);
+            Failed = false;
             try
             {
                 _listener = new HttpListener();
@@ -73,6 +76,7 @@ namespace Snitch.Server
             catch (Exception e)
             {
                 _running = false;
+                Failed = true;
                 Core.Log?.Error($"[snitch] data server failed to start on {port}: {e.Message} (port in use? change ServerPort)");
             }
         }

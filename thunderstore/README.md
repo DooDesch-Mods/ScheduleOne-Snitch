@@ -5,7 +5,7 @@
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de/snitch](https://support.doodesch.de/snitch).
 
 Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API - any other
-mod's systems. Its in-game panel lives in the **Hotline** overlay (each mod gets its own panel), alongside a
+mod's systems. Its in-game overlay is a race-standings table (compact, expandable to each mod's panel), alongside a
 combined log timeline and a live **web dashboard** so you can see frame times, section costs, and entity-state
 distributions in real time, and make your mod (or vanilla gameplay) faster.
 
@@ -16,6 +16,8 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 [![Polyfill](https://polyfill.doomods.com/badge/snitch.svg)](https://polyfill.doomods.com/mod/snitch)
 
 [![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO/badge.svg)](https://mlvscan.com/attestations/att_NBSidR_Xcg6VMwpaUbsBZScO)
+
+![Snitch 2.0.0 - race standings](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/header.jpg)
 
 **[Live dashboard](https://snitch.doodesch.de)** · **[Wiki / docs](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/wiki)** · **[Modder example](https://github.com/DooDesch-Mods/ScheduleOne-SnitchExample)** · **[Support](https://support.doodesch.de/snitch)**
 
@@ -34,20 +36,27 @@ distributions in real time, and make your mod (or vanilla gameplay) faster.
 - **Honest** - every number self-certifies; Snitch even reports its own overhead.
 - **Modder API** - a zero-overhead no-op when Snitch isn't installed; no hard dependency.
 
+## Screenshots
+
+![Expanded overlay](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/overlay-expanded.jpg)
+![Web dashboard](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/web-dashboard.jpg)
+
 ## Requirements
 
 | Requirement | Notes |
 |---|---|
 | MelonLoader | 0.7.x (IL2CPP) |
 | S1API | `ifBars-S1API_Forked` |
-| Hotline | The in-game overlay framework Snitch's panel renders in (auto-installed as a dependency). |
+| Sideload 1.36.1+ | Draws the in-game overlay (auto-installed as a dependency). |
 
 ## Use it
 
-Install **Hotline** (pulled in as a dependency) and press **F6** for its overlay; Snitch's panel is inside,
-with Start/Stop/Reset and live stats. Then `snitch start` (or the Start button on the panel). Or open the web
+Press **F6** (preference `OverlayKey`) to step the overlay through hidden, compact standings and expanded. Expanded is a set
+of windows - Standings, States and one per mod - that you drag by the title bar, resize from the bottom-right grip and
+close or reopen from the Windows strip; the layout is remembered and `snitch layout reset` restores it. Hold Alt and drag
+the header to move the compact card. Then `snitch start` (or the Start button). Or open the web
 dashboard at **[snitch.doodesch.de](https://snitch.doodesch.de)** - it auto-connects and shows everything live.
-Console verbs: `start, stop, status, frame, top, sections, states, counters, unattributed,
+Console verbs: `layout reset, start, stop, status, frame, top, sections, states, counters, unattributed,
 patches on|off|list, panels, act, toggle, log, vanilla on|off, ablate <lever>, levers, report`.
 Reports go to `Mods/Snitch/runs/`.
 

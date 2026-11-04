@@ -4,6 +4,8 @@
 
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de/snitch](https://support.doodesch.de/snitch).
 
+**Download:** [Nexus Mods](https://www.nexusmods.com/schedule1/mods/2222) · [Thunderstore](https://thunderstore.io/c/schedule-i/p/DooDesch/Snitch/) · [GitHub Releases](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/releases)
+
 📖 **API documentation:** [docs.doodesch.de/mods/snitch/api/](https://docs.doodesch.de/mods/snitch/api/)
 
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
@@ -56,14 +58,25 @@
 | Schedule I | IL2CPP build |
 | MelonLoader | 0.7.x |
 | S1API | `ifBars-S1API_Forked` |
-| [Sideload](https://github.com/DooDesch-Mods/ScheduleOne-Sideload) 1.36.1+ | Draws the in-game overlay (auto-installed as a dependency). |
+| [Sideload](https://www.nexusmods.com/schedule1/mods/2360) 1.36.1+ | Draws the in-game overlay (auto-installed as a dependency). |
 
 ## Installation
 
-**Mod manager (Thunderstore / r2modman):** install Snitch; the dependencies (MelonLoader, S1API, Sideload)
+### Recommended: Nexus Mods
+
+1. Install **MelonLoader 0.7.x** for Schedule I ([melonwiki.xyz](https://melonwiki.xyz/)).
+2. Download Snitch from [Nexus Mods](https://www.nexusmods.com/schedule1/mods/2222) and install it with Vortex,
+   or put **`Snitch.dll`** into your Schedule I `Mods/` folder.
+3. Get **S1API** and [Sideload](https://www.nexusmods.com/schedule1/mods/2360) 1.36.1 or newer the same way.
+
+### Thunderstore mod manager
+
+Install Snitch from the [Thunderstore page](https://thunderstore.io/c/schedule-i/p/DooDesch/Snitch/) with r2modman / Gale; the dependencies (MelonLoader, S1API, Sideload)
 pull in automatically.
 
-**Manual:** install MelonLoader 0.7.x, S1API and Sideload 1.36.1 or newer, then drop `Snitch.dll` into the game's `Mods/` folder.
+### Manual
+
+Install MelonLoader 0.7.x, S1API and Sideload 1.36.1 or newer, then drop `Snitch.dll` into the game's `Mods/` folder.
 
 ## Configuration
 

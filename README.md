@@ -6,8 +6,6 @@
 
 **Download:** [Nexus Mods](https://www.nexusmods.com/schedule1/mods/2222) · [Thunderstore](https://thunderstore.io/c/schedule-i/p/DooDesch/Snitch/) · [GitHub Releases](https://github.com/DooDesch-Mods/ScheduleOne-Snitch/releases)
 
-[![Discord](https://mods.doodesch.de/img/badge.svg)](https://mods.doodesch.de)
-
 📖 **API documentation:** [docs.doodesch.de/mods/snitch/api/](https://docs.doodesch.de/mods/snitch/api/)
 
 > Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API built on
@@ -21,7 +19,7 @@
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
-[![Polyfill](https://polyfill.doomods.com/badge/snitch.svg)](https://polyfill.doomods.com/mod/snitch)
+[![Discord](https://mods.doodesch.de/img/badge.svg)](https://mods.doodesch.de) [![Polyfill](https://polyfill.doomods.com/badge/snitch.svg)](https://polyfill.doomods.com/mod/snitch)
 
 [![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_oAb-DnqwKyqFBZJh8lRvZxe_/badge.svg)](https://mlvscan.com/attestations/att_oAb-DnqwKyqFBZJh8lRvZxe_)
 

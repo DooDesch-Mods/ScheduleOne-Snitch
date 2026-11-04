@@ -4,6 +4,8 @@
 
 > 🛟 **Need help or found a bug?** Get support at [support.doodesch.de/snitch](https://support.doodesch.de/snitch).
 
+[![Discord](https://mods.doodesch.de/img/badge.svg)](https://mods.doodesch.de)
+
 📖 **API documentation:** [docs.doodesch.de/mods/snitch/api/](https://docs.doodesch.de/mods/snitch/api/)
 
 Snitch measures the **cost** and **state** of NPCs, trash, quests, and - through a tiny no-op API - any other
@@ -84,6 +86,12 @@ Full example: **[ScheduleOne-SnitchExample](https://github.com/DooDesch-Mods/Sch
 ProfilerRecorder engine counters are inert in Schedule I's IL2CPP build, so Snitch relies on frame-time + GC
 and self-measured section timing. Profiling is local and safe in multiplayer; state-mutating features run
 host-only. Everything is idle until you `snitch start`.
+
+## Community
+
+[![DooDesch Mods on Discord](https://mods.doodesch.de/img/card.svg)](https://mods.doodesch.de)
+
+Join the DooDesch Mods Discord: update pings, polls on what comes next, and playtests of new mods.
 
 ## Credits
 

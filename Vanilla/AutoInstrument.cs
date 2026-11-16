@@ -151,9 +151,22 @@ namespace Snitch.Vanilla
             if (_ids.TryGetValue(__originalMethod, out int id)) SectionProfiler.End(id);
         }
 
+        /// <summary>The group the Debug test kit's spikes are timed under. Snitch never times its own code, except
+        /// the test kit, which stands in for another mod so a check can see attribution work end to end.</summary>
+        internal const string TestKitGroup = "SnitchTest";
+
+        internal static bool IsTestKit(Type t)
+        {
+#if DEBUG
+            for (Type x = t; x != null; x = x.DeclaringType)
+                if (x.Namespace == "Snitch.Testing") return true;
+#endif
+            return false;
+        }
+
         // ----- MelonLoader interop (defensive: the registry/Info API has shifted across versions) -----
 
-        private static IEnumerable<MelonMod> RegisteredMods()
+        internal static IEnumerable<MelonMod> RegisteredMods()
         {
             try { return MelonMod.RegisteredMelons; }
             catch (Exception e)
@@ -179,7 +192,7 @@ namespace Snitch.Vanilla
             return null;
         }
 
-        private static string ModName(MelonMod mod)
+        internal static string ModName(MelonMod mod)
         {
             string name = null;
             try { name = mod.Info?.Name; }

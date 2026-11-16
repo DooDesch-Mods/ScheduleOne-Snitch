@@ -87,11 +87,46 @@ namespace Snitch.Reporting
             }
             sb.AppendLine();
 
+            sb.AppendLine("## Engine work by kind");
+            sb.AppendLine();
+            List<EngineLoop.CategoryStat> cats = EngineLoop.CategoryStats();
+            if (cats.Count == 0) sb.AppendLine("_engine timing not running_");
+            else
+            {
+                sb.AppendLine("Every step of the engine's frame, grouped. The rows add up to the whole frame; mod sections are part of Scripts and Coroutines.");
+                sb.AppendLine();
+                sb.AppendLine("| kind | mean ms | worst frame ms |");
+                sb.AppendLine("|---|---|---|");
+                foreach (EngineLoop.CategoryStat c in cats)
+                    if (c.Mean >= 0.005 || c.Max >= 0.5)
+                        sb.AppendLine($"| {EngineCategories.Label(c.Category)} | {F(c.Mean)} | {F(c.Max)} |");
+            }
+            sb.AppendLine();
+
+            sb.AppendLine("## Stutters (last 60 s)");
+            sb.AppendLine();
+            List<EngineLoop.Stutter> stutters = EngineLoop.RecentStutters(60f);
+            if (stutters.Count == 0) sb.AppendLine("_none_");
+            else
+            {
+                sb.AppendLine("Each stutter is blamed on one cause: a section (a mod, its patch, MonoBehaviour or coroutine, or a game class "
+                            + "with `snitch deep on`) that grew by at least half the frame's excess, else a game or .NET garbage collection in "
+                            + "that frame (named after the mod that made most of its garbage), else the kind of engine work that grew most.");
+                sb.AppendLine();
+                sb.AppendLine("| seconds ago | frame ms | usual ms | cause | cause +ms | mod | class | garbage since the last collection | engine step that grew most | sections that grew |");
+                sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|");
+                float now = UnityEngine.Time.realtimeSinceStartup;
+                foreach (EngineLoop.Stutter s in stutters)
+                    sb.AppendLine($"| {F(now - s.Time)} | {F(s.FrameMs)} | {F(s.MedianMs)} | {s.Cause} | {F(s.CauseMs)} | {s.Mod} | {s.Class} | "
+                                + $"{s.Garbage} | `{s.Detail}` | {s.Contributors} |");
+            }
+            sb.AppendLine();
+
             sb.AppendLine("## Wrapped Harmony patches");
             sb.AppendLine();
             List<WrappedPatch> patches = Snitch.Vanilla.PatchInstrument.All();
             if (patches.Count == 0)
-                sb.AppendLine("_none - other mods' Harmony patches are not timed (`snitch patches on`)_");
+                sb.AppendLine("_none - other mods' Harmony patches are not timed (`snitch patches on`, preference TimeModPatches)_");
             else
             {
                 sb.AppendLine("| section | mod | kinds | patched methods |");

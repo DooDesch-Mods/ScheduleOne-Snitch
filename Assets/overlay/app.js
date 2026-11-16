@@ -104,9 +104,10 @@
   }
 
   function updateRow(o, r, i, scale) {
-    var isLeader = i === 0 && !r.dnf;
+    // The game row (r.u) follows the mods and never leads: it is most of every frame, not a mod's cost.
+    var isLeader = i === 0 && !r.dnf && !r.u;
     setCls(o.mark, isLeader ? 'mark' : 'nomark');
-    setCls(o.el, r.dnf ? 'row dnf' : isLeader ? 'row lead' : 'row');
+    setCls(o.el, r.dnf ? 'row dnf' : isLeader ? 'row lead' : r.u ? 'row game' : 'row');
     paintBib(o.bib, r.bib, r.c);
     var full = r.g + (r.n && r.n !== r.g ? ' ' + r.n : '');
     setText(o.name, full.length > NAME_MAX ? full.substring(0, NAME_MAX - 3) + '...' : full);
@@ -118,6 +119,7 @@
     setText(o.ms, r.dnf ? '' : ms(r.ms) + ' ms');
     if (r.dnf) setText(o.gt, 'DNF ' + ago(r.silent));
     else if (isLeader) setText(o.gt, 'LEADER');
+    else if (r.u) setText(o.gt, '');
     else setText(o.gt, '+' + r.gap.toFixed(2) + ' ms');
     setCls(o.gt, r.dnf ? 'gt red' : isLeader ? 'gt chip' : 'gt');
   }
@@ -730,6 +732,20 @@
     if (expanded) front('standings');
   }
 
+  // ---- stutters ----
+  // "stut" holds the stutters of the last 30 s: n, the newest one (ms, cause, mod, ago) and the count per cause (by).
+  function lastStutter(s) {
+    if (!s || !(s.n > 0)) return '';
+    return 'Last stutter: ' + Math.round(s.ms) + ' ms - ' + s.cause;
+  }
+
+  function stutterCounts(s) {
+    if (!s || !(s.n > 0)) return '';
+    var parts = [];
+    for (var i = 0; s.by && i < s.by.length; i++) parts.push(s.by[i].c + ' ' + s.by[i].n);
+    return s.n + (s.n === 1 ? ' stutter: ' : ' stutters: ') + parts.join(', ');
+  }
+
   // ---- whole state ----
   function render(st) {
     state = st;
@@ -751,7 +767,10 @@
     var phoneOn = !!(st.phone && st.phone.on);
     setCls($('phone'), phoneOn ? 'btn on' : 'btn');
     setText($('phone'), phoneOn ? 'Phone on' : 'Phone');
-    setText($('hint'), st.bad > 0 ? st.bad + ' spike frames in unattributed work' : 'Key ' + st.key);
+    setText($('hint'), stutterCounts(st.stut) || 'Key ' + st.key);
+    var last = lastStutter(st.stut);
+    setText($('stut'), last);
+    setShow($('stut'), last.length > 0);
     setText($('chint'), st.key + ' to open · hold Alt to move');
     var note = expanded && st.note ? st.note : '';
     setText($('note'), note);

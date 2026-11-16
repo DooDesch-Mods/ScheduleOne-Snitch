@@ -85,7 +85,10 @@ def main():
 
     code, log = s1(slot, "log", "-n", "50000", "--grep", "snitch")
     # A port the overlay check took on purpose (snitch servertest) is not a fault of the session.
+    # A warning is a handled case that Snitch reports on purpose (a method Harmony cannot rebuild is left as it was);
+    # its text may quote the error it handled.
     bad = [l for l in log.splitlines() if re.search(r"(?i)\[snitch\]", l) and re.search(r"(?i)error|exception", l)
+           and "[WARNING]" not in l
            and not re.search(r"data server failed to start on (?!" + str(port) + r"\b)\d+", l)]
     check("log has Snitch lines (grep works)", code == 0 and "[snitch]" in log.lower(), f"{len(log.splitlines())} lines")
     check("no [Snitch] errors or exceptions in this session's log", not bad, "\n".join(bad[-5:]))

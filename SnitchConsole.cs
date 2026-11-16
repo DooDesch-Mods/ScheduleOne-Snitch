@@ -68,6 +68,15 @@ namespace Snitch
                     case "counters": Counters(); break;
                     case "unattributed":
                     case "unattr": Unattributed(); break;
+                    case "engine":
+                        if (p.Length > 2 && p[2].ToLowerInvariant() == "map") EngineMap();
+                        else EngineCmd(IntArg(p, 2, 15));
+                        break;
+                    case "deep":
+                        if (p.Length > 2 && p[2].ToLowerInvariant() == "off") { Snitch.Vanilla.DeepProbes.Disable(); Log("deep probes OFF."); }
+                        else Log(Snitch.Vanilla.DeepProbes.Enable());
+                        break;
+                    case "garbage": GarbageCmd(); break;
                     case "patches": PatchesCmd(p); break;
                     case "panels": PanelsList(); break;
                     case "act": ActCmd(p); break;
@@ -82,6 +91,7 @@ namespace Snitch
                     case "qrurl": Log("qr url " + (Snitch.UI.QrImage.Build() == null ? "none" : Snitch.UI.QrImage.Url)); break;
                     case "inputstate": Log(Snitch.UI.OverlayInput.Describe()); break;
                     case "escape": Log(Snitch.UI.OverlayInput.PressEscape()); break;
+                    case "burn": Log(Snitch.Testing.SpikeKit.Arm(p)); break;
 #endif
                     case "dashboard": Core.OpenDashboard(); break;
                     case "log": LogCmd(p); break;
@@ -119,13 +129,15 @@ namespace Snitch
         private static void Help()
         {
             Log("commands: open [all] | close [all] | layout reset | start | stop | status | frame | top [n] | sections | states [id] | counters | "
-                + "unattributed | patches [on|off|list|status] | "
+                + "unattributed | engine [n|map] | garbage | deep [on|off] | patches [on|off|list|status] | "
                 + "panels | act <actionId> | toggle <toggleId> [on|off] | slider <sliderId> [value] | dashboard | log [<channel>|all] [n] | "
                 + "vanilla [on|off] | lan [on|off] | ablate <lever> | levers | report [md|csv|all]  "
                 + "('open' shows the compact standings; 'open all' opens the windows; 'close' hides the overlay; "
-                + "'layout reset' puts the overlay windows back to their default places)");
+                + "'layout reset' puts the overlay windows back to their default places; 'engine' lists the engine's own work "
+                + "and the recent stutters with their cause; 'garbage' lists who allocated what since sampling started; 'deep on' times the game's own scripts by class, which costs frame time)");
 #if DEBUG
-            Log("debug: where <elementId> logs the screen centre of an overlay element.");
+            Log("debug: where <elementId> logs the screen centre of an overlay element. "
+                + "burn <ms> [section|patch|behaviour|coroutine|game] | burn gc | burn garbage [net] makes a test stutter.");
 #endif
         }
 
@@ -391,6 +403,60 @@ namespace Snitch
             Log("  " + NextStep(a));
         }
 
+        /// <summary>The engine's frame step by step (PlayerLoop markers): the costliest steps, then each spike frame
+        /// in the window with the steps that grew.</summary>
+        private static void EngineCmd(int n)
+        {
+            if (!EngineLoop.Installed) { Log("engine timing: not installed (see the log), or sampling never started."); return; }
+            var stats = EngineLoop.Stats();
+            if (stats.Count == 0) { Log("engine timing: no frames yet."); return; }
+            Log($"engine steps (top {Math.Min(n, stats.Count)} of {stats.Count} by mean ms, {EngineLoop.Count} frames):");
+            for (int i = 0; i < stats.Count && i < n; i++)
+                Log($"  {EngineLoop.StepName(stats[i].Step),-60} mean {stats[i].Mean,6:F2}  median {stats[i].Median,6:F2}  max {stats[i].Max,7:F2}");
+            var spikes = EngineLoop.Spikes(Preferences.SpikeFactor, 4);
+            Log($"spike frames in the window: {spikes.Count}");
+            foreach (var s in spikes)
+            {
+                var sb = new StringBuilder();
+                sb.Append($"  {s.FrameMs:F1} ms (median {s.MedianMs:F1})");
+                if (s.Gc > 0) sb.Append($" GC x{s.Gc}");
+                foreach (var kv in s.Excess) sb.Append($" | {EngineLoop.StepName(kv.Key)} +{kv.Value:F1}");
+                Log(sb.ToString());
+            }
+            Log("engine work by kind:");
+            foreach (var c in EngineLoop.CategoryStats())
+                Log($"  {EngineCategories.Label(c.Category),-30} mean {c.Mean,6:F2}  max {c.Max,7:F2}");
+            var recent = EngineLoop.RecentStutters(60f);
+            Log($"stutters in the last 60 s: {recent.Count}");
+            foreach (var s in recent)
+                Log($"  {s.FrameMs:F1} ms (median {s.MedianMs:F1}) cause {s.Display} +{s.CauseMs:F1} ({s.Kind}, step {s.Detail})"
+                    + (string.IsNullOrEmpty(s.Garbage) ? "" : $" | garbage: {s.Garbage}")
+                    + (string.IsNullOrEmpty(s.Contributors) ? "" : $" | grew: {s.Contributors}"));
+        }
+
+        /// <summary>Garbage per mod since sampling started, for the game heap and the .NET heap.</summary>
+        private static void GarbageCmd()
+        {
+            if (!SectionProfiler.AllocTracking) { Log("garbage: not measured - run 'snitch start' first."); return; }
+            foreach (bool game in new[] { true, false })
+            {
+                var shares = SectionProfiler.TotalByGroup(game, out long total);
+                Log($"{(game ? "game heap" : ".NET heap")}: {SectionProfiler.Bytes(total)} allocated since sampling started"
+                    + (shares.Count == 0 ? "." : ", by mod:"));
+                for (int i = 0; i < shares.Count && i < 12; i++)
+                    Log($"  {shares[i].Group,-34} {SectionProfiler.Bytes(shares[i].Bytes),10}  {shares[i].Pct,5:F1}%");
+            }
+            Log("  '(outside mod code)' is the game itself plus any code no section covers. Game-heap bytes count per heap block, so small amounts are rough.");
+        }
+
+        /// <summary>Every engine step with the kind of work it is counted as.</summary>
+        private static void EngineMap()
+        {
+            if (!EngineLoop.Installed) { Log("engine timing: not installed (see the log), or sampling never started."); return; }
+            for (int i = 0; i < EngineLoop.StepCount; i++)
+                Log($"  {EngineLoop.StepName(i),-60} {EngineCategories.Label(EngineLoop.CategoryOfStep(i))}");
+        }
+
         /// <summary>What to do about an unexplained frame, given what is already switched on. This is the line the
         /// unattributed report exists for: without it the number is a shrug.</summary>
         private static string NextStep(AttributionStats a)
@@ -399,12 +465,15 @@ namespace Snitch
                 return "the bad frames are explained by sections that got worse, so 'snitch top' has the answer.";
 
             if (!Snitch.Vanilla.PatchInstrument.Enabled)
-                return "-> run 'snitch patches on'. A mod's per-frame work does not have to live in OnUpdate: a Harmony "
-                     + "postfix on a vanilla method the engine calls every frame belongs to no section, so the mod reads as cheap.";
+                return "-> patch timing is off: run 'snitch patches on'. A Harmony postfix on a vanilla method the engine "
+                     + "calls every frame belongs to no section while it is off, so the mod reads as cheap.";
 
-            return $"-> patch timing is already on ({Snitch.Vanilla.PatchInstrument.WrappedCount} patches wrapped) and still nothing "
-                 + "accounts for it. What is left: a coroutine, an event handler, a Unity message on a MonoBehaviour a mod added, "
-                 + "or the game itself - 'snitch vanilla on' and 'snitch ablate' cover the last two.";
+            if (Snitch.Vanilla.PatchQueue.Pending > 0)
+                return $"-> {Snitch.Vanilla.PatchQueue.Pending} wrapper(s) are still going in; read this again in a few seconds.";
+
+            return $"-> mod patches ({Snitch.Vanilla.PatchInstrument.WrappedCount}), MonoBehaviours and coroutines are timed and "
+                 + "still nothing accounts for it. What is left: an event handler, or the game itself - "
+                 + "'snitch deep on' names the game class, 'snitch ablate' tests a game system.";
         }
 
         /// <summary>

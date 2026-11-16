@@ -55,10 +55,18 @@ namespace Snitch.Engine
             SectionProfiler.Reset();
             Attribution.Reset();
             Vanilla.AutoInstrument.DiscoverProbes();   // register each mod's counters/state once (zero mod wiring)
-            if (Preferences.AutoInstrument) Vanilla.AutoInstrument.Enable();   // per-mod frame cost, zero mod code
-            // Harmony patches are opt-in: wrapping hundreds of them costs, and a profiler that changes what it
-            // measures is worse than useless. The unattributed line is what tells a user to switch this on.
-            if (Preferences.WrapModPatches || Vanilla.PatchInstrument.Requested) Vanilla.PatchInstrument.Enable();
+            SectionProfiler.StartAllocTracking();   // who made the garbage a collection stutter cleans up
+            if (Preferences.AutoInstrument)
+            {
+                Vanilla.AutoInstrument.Enable();    // per-mod frame cost, zero mod code
+                Vanilla.ModBehaviours.Enable();     // a mod's own MonoBehaviours and coroutines
+            }
+            // A mod's Harmony patches are timed with sampling unless the player switched that off: work inside a
+            // patch is otherwise charged to the game. The wrappers go in a few per frame (PatchQueue).
+            bool patches = Preferences.TimeModPatches ? !Vanilla.PatchInstrument.Declined : Vanilla.PatchInstrument.Requested;
+            if (patches) Vanilla.PatchInstrument.Enable();
+            EngineLoop.Reset();
+            EngineLoop.Enable();
             _pollAccum = 999f;   // force a poll on the next tick
             Core.Log?.Msg("[snitch] sampling started.");
         }
@@ -67,7 +75,10 @@ namespace Snitch.Engine
         {
             _active = false;
             Vanilla.AutoInstrument.Disable();
+            Vanilla.ModBehaviours.Disable();
             Vanilla.PatchInstrument.Suspend();
+            SectionProfiler.StopAllocTracking();
+            EngineLoop.Disable();
             Core.Log?.Msg("[snitch] sampling stopped.");
         }
 
@@ -90,19 +101,30 @@ namespace Snitch.Engine
             }
 
             Ablation.AblationEngine.Tick();   // advance an active ablation sweep (no-op when idle)
+            Vanilla.DeepProbes.Step();        // apply the next batch of deep-probe patches (no-op when done)
+            Vanilla.PatchQueue.Step();        // install queued mod wrappers within this frame's budget
 
             SectionProfiler.End(_selfId);
+#if DEBUG
+            Testing.SpikeKit.Tick();            // a test stutter runs outside Snitch.Self, like unlabelled game work
+#endif
             // Frame boundary: push the per-frame section totals into the rolling windows. What comes back is the
             // root-level total - wall time inside any section, nesting counted once - which paired with this
             // frame's wall time is the whole unattributed accounting.
-            double attributedMs = SectionProfiler.Flush();
-            Attribution.Push(frameMs, attributedMs);
+            // With engine timing the frame boundary is the engine's own (EngineLoop flushes there); otherwise this
+            // tick is the boundary.
+            if (!EngineLoop.Enabled)
+            {
+                double attributedMs = SectionProfiler.Flush();
+                Attribution.Push(frameMs, attributedMs);
+            }
         }
 
         private static void Poll()
         {
             LatestFrame = FrameSampler.Snapshot();
             LatestAttribution = Attribution.Snapshot(Preferences.SpikeFactor);
+            EngineLoop.Refresh(Preferences.SpikeFactor);
             LatestSections = SectionProfiler.Report(LatestFrame.MeanMs);
             Attribution.AppendRow(LatestSections, LatestAttribution, LatestFrame.MeanMs);
             LatestStates = StateRegistry.PollAll();

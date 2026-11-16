@@ -60,6 +60,8 @@ button { font-family: "Barlow"; }
 .gt.red { color: #D7262E; font-weight: 700; }
 .gt.chip { background-color: #F2C200; color: #14213D; font-weight: 700; padding: 2px 6px; border-radius: 3px; letter-spacing: 1px; }
 .morerows { color: #4A5568; font-size: 14px; padding: 0 12px 10px 12px; }
+.row.game .name { color: #4A5568; }
+.stut { color: #14213D; font-size: 14px; font-weight: 600; padding: 0 12px 8px 12px; white-space: nowrap; overflow: hidden; }
 .mark { width: 8px; flex-shrink: 0; height: 26px; background-color: #F2C200; border-radius: 2px; margin-right: 6px; }
 .nomark { width: 8px; flex-shrink: 0; height: 26px; margin-right: 6px; }
 .dnf { opacity: 0.55; }

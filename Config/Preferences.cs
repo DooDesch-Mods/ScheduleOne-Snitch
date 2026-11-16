@@ -66,12 +66,11 @@ namespace Snitch.Config
                 "ON (default): while sampling, every other loaded mod's per-frame methods (OnUpdate etc.) are timed " +
                 "automatically and shown as '<Mod>.OnUpdate' - so any mod's frame cost appears with no code on its side. " +
                 "Turn OFF to only show sections that mods (or Snitch's vanilla probes) register explicitly.");
-            _wrapModPatches = Create("WrapModPatches", false, "Also time other mods' Harmony patches",
-                "OFF (default): only lifecycle methods and registered sections are timed. ON: while sampling, every " +
-                "other mod's Harmony prefix/postfix/finalizer is wrapped and timed too - the usual hiding place for " +
-                "per-frame cost that no OnUpdate explains. It is off by default because wrapping hundreds of patch " +
-                "methods costs measurable time of its own, and because a Harmony patch that fails leaves its target " +
-                "broken for every later patcher. Turn it on from the console with 'snitch patches on'.");
+            _wrapModPatches = Create("TimeModPatches", true, "Also time other mods' Harmony patches",
+                "ON (default): while sampling, every other mod's Harmony prefix/postfix/finalizer is wrapped and timed, " +
+                "so a stutter inside a patch is charged to the mod that owns it instead of to the game. The wrappers " +
+                "go in a few per frame after 'snitch start'. Turn OFF if a mod misbehaves once its patches are " +
+                "wrapped; 'snitch patches off' does the same for the running session.");
             _spikeFactor = Create("SpikeFactor", 1.5f, "Bad-frame threshold (x median)",
                 "How much worse than the window median a frame has to be before it counts as a spike in the " +
                 "unattributed report. 1.5 means 50 percent over the median. Lower catches more frames and more " +
@@ -124,7 +123,7 @@ namespace Snitch.Config
         internal static bool EnableInMultiplayer => _enableInMp?.Value ?? true;
         internal static bool AutoStart => _autoStart?.Value ?? false;
         internal static bool AutoInstrument => _autoInstrument?.Value ?? true;
-        internal static bool WrapModPatches => _wrapModPatches?.Value ?? false;
+        internal static bool TimeModPatches => _wrapModPatches?.Value ?? true;
         internal static float SpikeFactor => Mathf.Clamp(_spikeFactor?.Value ?? 1.5f, 1.1f, 5f);
         internal static float PollHz => Mathf.Clamp(_pollHz?.Value ?? 4f, 1f, 30f);
 

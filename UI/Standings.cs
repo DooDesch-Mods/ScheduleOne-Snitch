@@ -260,20 +260,25 @@ namespace Snitch.UI
                 });
             }
 
+            // The game's own row (everything outside a section) is most of every frame and would always lead, so it
+            // follows the mods instead of racing them; the leader and the gaps are among the mods only.
             result.Sort((x, y) =>
             {
                 if (x.Dnf != y.Dnf) return x.Dnf ? 1 : -1;
+                bool xg = Identity.IsUnattributed(x.Group), yg = Identity.IsUnattributed(y.Group);
+                if (xg != yg) return xg ? 1 : -1;
                 if (x.Dnf) return x.SilentFor.CompareTo(y.SilentFor) != 0
                     ? x.SilentFor.CompareTo(y.SilentFor) : string.CompareOrdinal(x.Key, y.Key);
                 int c = y.Ms.CompareTo(x.Ms);
                 return c != 0 ? c : string.CompareOrdinal(x.Key, y.Key);
             });
 
-            double leader = result.Count > 0 && !result[0].Dnf ? result[0].Ms : 0.0;
+            double leader = result.Count > 0 && !result[0].Dnf && !Identity.IsUnattributed(result[0].Group) ? result[0].Ms : 0.0;
             for (int i = 0; i < result.Count; i++)
             {
                 result[i].Rank = i + 1;
-                result[i].Gap = result[i].Dnf ? 0.0 : Math.Max(0.0, leader - result[i].Ms);
+                bool game = Identity.IsUnattributed(result[i].Group);
+                result[i].Gap = result[i].Dnf || game ? 0.0 : Math.Max(0.0, leader - result[i].Ms);
             }
             return result;
         }

@@ -15,7 +15,7 @@ mod's systems. Its in-game overlay is a race-standings table (compact, expandabl
 combined log timeline and a live **web dashboard** so you can see frame times, section costs, and entity-state
 distributions in real time, and make your mod (or vanilla gameplay) faster.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![Game](https://img.shields.io/badge/game-Schedule%20I-orange)
 ![MelonLoader](https://img.shields.io/badge/MelonLoader-0.7.x-green)
 ![S1API](https://img.shields.io/badge/S1API-required-purple)

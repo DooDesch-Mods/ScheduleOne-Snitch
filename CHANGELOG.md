@@ -2,6 +2,34 @@
 
 All notable changes to Snitch are documented here. Format based on [Keep a Changelog](https://keepachangelog.com).
 
+## [2.1.0] - 2026-11-16
+
+### Changed
+
+- Every stutter names its cause in the log and the overlay: a mod's OnUpdate, Harmony patch, MonoBehaviour or
+  coroutine, each with the mod's name.
+- A garbage collection stutter says game or .NET collection and lists the garbage per mod since the previous one.
+- Long game work is named by kind (Scripts, Coroutines, Physics, Rendering, Audio) instead of "(unattributed)".
+- The game no longer takes the Leader place. Its work gets its own rows below the mods.
+
+### Added
+
+- `snitch deep on` times the game's own Update, LateUpdate, FixedUpdate and coroutines per class. A game-script
+  stutter without a class points to it.
+- `snitch engine` lists the engine steps and the stutters of the last 60 s; `snitch garbage` lists the garbage per
+  mod for both heaps.
+- Mod MonoBehaviours and coroutines are timed per method. Wrappers go in at up to 2 ms per frame instead of all at
+  once.
+
+### Fixed
+
+- A patch Snitch cannot wrap is taken out again and left as it was. Before, it stayed in and later patches of that
+  method failed too.
+
+### For mod authors
+
+- Nothing to change: `Snitch.Api`, the console commands and the data on port 6140 stay the same.
+
 ## [2.0.0] - 2026-11-02
 
 ### Changed

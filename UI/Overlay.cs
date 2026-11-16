@@ -737,6 +737,94 @@ namespace Snitch.UI
 
         // ----- state for the page -----
 
+        /// <summary>The newest stutter of the last 30 s with its cause, and the count per cause, as "stut".</summary>
+        private static void AppendStutters(StringBuilder sb)
+        {
+            const float Within = 30f;
+            List<EngineLoop.Stutter> recent = EngineLoop.RecentStutters(Within);
+            sb.Append(",\"stut\":{\"n\":").Append(recent.Count);
+            if (recent.Count > 0)
+            {
+                EngineLoop.Stutter s = recent[0];
+                Num(sb, "ms", s.FrameMs);
+                Str(sb, "cause", s.Display);
+                Str(sb, "mod", s.Mod);
+                Num(sb, "ago", Math.Floor(UnityEngine.Time.realtimeSinceStartup - s.Time));
+            }
+            sb.Append(",\"by\":[");
+            List<KeyValuePair<string, int>> by = EngineLoop.StutterCounts(Within);
+            for (int i = 0; i < by.Count && i < 4; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append("{\"c\":\"").Append(WireProtocol.Esc(by[i].Key)).Append("\",\"n\":").Append(by[i].Value).Append('}');
+            }
+            sb.Append("]}");
+        }
+
+        /// <summary>The two kinds of engine work that cost most per frame, "Scripts, Rendering"; empty without engine timing.
+        /// Mod sections run inside Scripts, so that kind is the game's scripts plus the mods.</summary>
+        private static string GameKinds()
+        {
+            List<EngineLoop.CategoryStat> cats = EngineLoop.CategoryStats();
+            if (cats.Count == 0) return "";
+            var sb = new StringBuilder(40);
+            for (int i = 0, n = 0; i < cats.Count && n < 2; i++)
+            {
+                if (cats[i].Mean < 0.05) break;
+                if (n++ > 0) sb.Append(", ");
+                sb.Append(EngineCategories.Label(cats[i].Category));
+            }
+            return sb.Length > 0 ? "(" + sb + ")" : "";
+        }
+
+        private const int ExpandedGameRows = 6;
+
+        /// <summary>
+        /// The Game block: the game's own time split by kind of engine work, "Game Scripts 4.1 ms", "Game Rendering
+        /// 2.3 ms". Mod code runs inside the engine's script steps, so Scripts is shown without the mods' timed share.
+        /// Waiting for the GPU or the frame cap is idle time, not work, and is left out. Returns false without engine
+        /// timing, and the caller lists the single unattributed row instead.
+        /// </summary>
+        private static bool AppendGameRows(StringBuilder sb, ref bool first, Rider r, double modMs, int max)
+        {
+            List<EngineLoop.CategoryStat> cats = EngineLoop.CategoryStats();
+            if (cats.Count == 0) return false;
+            var rows = new List<KeyValuePair<int, double>>(cats.Count);
+            for (int i = 0; i < cats.Count; i++)
+            {
+                int c = cats[i].Category;
+                if (c == EngineCategories.WaitGpu) continue;
+                double ms = c == EngineCategories.Scripts ? Math.Max(0, cats[i].Mean - modMs) : cats[i].Mean;
+                if (ms >= 0.05) rows.Add(new KeyValuePair<int, double>(c, ms));
+            }
+            if (rows.Count == 0) return false;
+            rows.Sort((a, b) => b.Value.CompareTo(a.Value));
+
+            string color = Identity.Color(r.Group);
+            int bib = Identity.Bib(r.Group);
+            for (int i = 0; i < rows.Count && i < max; i++)
+            {
+                if (!first) sb.Append(',');
+                first = false;
+                string label = EngineCategories.Label(rows[i].Key);
+                sb.Append("{\"k\":\"game:").Append(WireProtocol.Esc(label)).Append('"');
+                Str(sb, "g", "Game");
+                Str(sb, "n", label);
+                Bool(sb, "u", true);
+                Num(sb, "bib", bib);
+                Str(sb, "c", color);
+                Num(sb, "rank", r.Rank);
+                Num(sb, "ms", rows[i].Value);
+                Num(sb, "gap", 0);
+                Num(sb, "max", 0);
+                Num(sb, "calls", 0);
+                Bool(sb, "dnf", false);
+                Num(sb, "silent", 0);
+                sb.Append('}');
+            }
+            return true;
+        }
+
         private static string StateJson()
         {
             var sb = new StringBuilder(4096);
@@ -762,29 +850,40 @@ namespace Snitch.UI
             Num(sb, "gc", f.Gc0Per1000);
             Num(sb, "minFps", f.MinFps);
             Num(sb, "bad", at.PointsAtHiddenWork ? at.SpikeFrames : 0);
+            AppendStutters(sb);
             Str(sb, "key", Preferences.OverlayKey.ToString());
 
-            double leader = riders.Count > 0 && !riders[0].Dnf ? riders[0].Ms : 0;
+            double leader = riders.Count > 0 && !riders[0].Dnf && !Identity.IsUnattributed(riders[0].Group) ? riders[0].Ms : 0;
+            if (leader <= 0)
+                for (int i = 0; i < riders.Count; i++)
+                    if (!riders[i].Dnf) { leader = riders[i].Ms; break; }
             Num(sb, "scale", Standings.ScaleFor(leader));
+            string gameKinds = GameKinds();
 
-            // Compact lists the top three named riders, expanded the top ten; the unattributed row (bib 0) is listed
-            // in both and does not count toward that limit.
+            // Compact lists the top three named riders, expanded the top ten. The game's time (the unattributed rider)
+            // follows them as the Game block: one row per kind of engine work, three in compact, more expanded. Those
+            // rows do not count toward the mod limit.
             sb.Append(",\"riders\":[");
             bool first = true;
             int shown = 0;
             int hidden = 0;
+            double modMs = 0;
+            for (int i = 0; i < riders.Count; i++)
+                if (!riders[i].Dnf && !Identity.IsUnattributed(riders[i].Group)) modMs += riders[i].Ms;
             for (int i = 0; i < riders.Count; i++)
             {
                 Rider r = riders[i];
                 bool unattr = Identity.IsUnattributed(r.Group);
                 if (!unattr && shown >= (expanded ? ExpandedRows : 3)) { hidden++; continue; }
+                if (unattr && AppendGameRows(sb, ref first, r, modMs, expanded ? ExpandedGameRows : 3)) continue;
                 if (!first) sb.Append(',');
                 first = false;
                 if (!unattr) shown++;
                 int bib = Identity.Bib(r.Group);
                 sb.Append("{\"k\":\"").Append(WireProtocol.Esc(r.Key)).Append('"');
-                Str(sb, "g", r.Group);
-                Str(sb, "n", unattr ? r.Label : StripGroup(r.Label, r.Group));
+                Str(sb, "g", unattr ? "Game" : r.Group);
+                Str(sb, "n", unattr ? gameKinds : StripGroup(r.Label, r.Group));
+                Bool(sb, "u", unattr);
                 Num(sb, "bib", bib);
                 Str(sb, "c", Identity.Color(r.Group));
                 Num(sb, "rank", r.Rank);

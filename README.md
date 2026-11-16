@@ -32,6 +32,7 @@
 - **Frame time** distribution + fps + GC pressure - the load-bearing, build-independent truth.
 - **Section costs** - time named code sections (yours via the API, or vanilla hot paths like `NPCMovement.Update`).
 - **Unattributed time** - the part of a frame that ran inside no section at all, reported as its own line. When a frame is far worse than the median and the sections did not grow with it, Snitch says so instead of implying the rest is fine.
+- **Stutter causes** - every step of the engine's frame is timed, so each stutter is named: the mod that caused it (its OnUpdate, Harmony patch, MonoBehaviour or coroutine), a garbage collection with the mod that made most of the garbage, or the kind of game work (scripts, rendering, physics, loading, ...). The overlay shows the last stutter and its cause.
 - **Harmony patch timing** - opt-in wrapping of every other mod's prefixes, postfixes and finalizers, so per-frame cost that lives in a patch on a vanilla method shows up under the mod that owns it.
 - **State distributions** - NPCs by movement/visibility, trash by physics state, quests by state, and your own.
 - **Per-mod panels** - any mod that reports data gets its own panel (counters, state, text, action buttons, toggles) in the expanded in-game overlay and the web dashboard.
@@ -88,7 +89,7 @@ profiler is idle until you run `snitch start`.
 | `Enabled` | `true` | Master switch. OFF = Snitch does nothing. |
 | `EnableInMultiplayer` | `true` | Profiling runs locally on every peer; state-mutating levers stay host-only. |
 | `AutoStart` | `false` | Begin sampling automatically on world load. |
-| `WrapModPatches` | `false` | Also time other mods' Harmony patches. Off by default: wrapping hundreds of patch methods costs, and a failed patch breaks its target for later patchers. |
+| `TimeModPatches` | `true` | Also time other mods' Harmony patches, so a stutter inside a patch is charged to its mod. The wrappers go in a few per frame after `snitch start`. |
 | `SpikeFactor` | `1.5` | How much worse than the window median a frame has to be to count as a bad frame in the unattributed report. |
 | `PollHz` | `4` | How often state providers + counters are sampled (frame-time is every frame). |
 | `ServerEnabled` | `true` | Run the loopback data server for the web dashboard. |
@@ -111,7 +112,10 @@ Snitch's own console:
 - `snitch act <id>` / `snitch toggle <id>` / `snitch log [<channel>|all]` - run a panel action, flip a toggle, or read the logs.
 - `snitch top` / `snitch sections` / `snitch states` / `snitch counters` - log the current numbers.
 - `snitch unattributed` - how much of the frame no section explains, and how much of the bad frames it accounts for.
-- `snitch patches on` / `off` / `list` - time every other mod's Harmony prefixes, postfixes and finalizers.
+- `snitch engine [n]` - the engine's own work by kind and the stutters of the last 60 s with their cause (`snitch engine map` lists every engine step and its kind).
+- `snitch deep on` / `off` - time the game's own scripts by class, so a stutter in game code names the class. Costs frame time while on.
+- `snitch patches on` / `off` / `list` - time every other mod's Harmony prefixes, postfixes and finalizers (on with sampling by default).
+- `snitch garbage` - which mod made the garbage since the last collection, on the game heap and the .NET heap.
 - `snitch vanilla on` - attribute CPU cost to vanilla hot paths (e.g. `NPCMovement.Update/FixedUpdate`).
 - `snitch ablate <lever>` - measure a subsystem's causal frame cost (built-in `npc` lever; `snitch levers` lists them).
 - `snitch report [md|csv|all]` - export to `Mods/Snitch/runs/`.
@@ -151,8 +155,8 @@ postfix on a vanilla method the engine calls every frame, in a coroutine, in an 
 message on a `MonoBehaviour` the mod added - none of which any section covers.
 
 So every frame Snitch now also records what the frame cost against what the sections accounted for, and reports
-the difference as **`(unattributed)`** - a row in the section list, a line in the report, a field on the
-dashboard. Most of it is the game itself and always will be. The number that points at a mod is the bad-frame
+the difference as **`(unattributed)`** - a row in the section list (the "Game" row in the overlay), a line in the
+report, a field on the dashboard. Most of it is the game itself and always will be. The number that points at a mod is the bad-frame
 split:
 
 ```
@@ -160,24 +164,55 @@ snitch unattributed
 unattributed: 4.12 ms/frame of a 6.53 ms frame (63%) - inside no section at all.
   sections account for 2.41 ms/frame; the worst single frame left 18.90 ms unexplained.
   bad frames: 7 of 120 above 1.5x the 6.10 ms median; on those, 8.32 ms of the 9.10 ms excess (91%) is unexplained.
-  -> run 'snitch patches on'.
+  -> mod patches (252), MonoBehaviours and coroutines are timed and still nothing accounts for it. ...
 ```
 
 When a frame is far worse than the median and the sections did not grow with it, the extra milliseconds are
 running somewhere the profiler does not reach - and that is a fact worth acting on, not a gap to fill in later.
 
-### `snitch patches on`
+### Stutters
 
-The usual hiding place is a Harmony patch, so `snitch patches on` wraps every prefix, postfix and finalizer that
-belongs to a loaded mod and times it like a lifecycle method. `snitch patches list` shows what was wrapped, what
+Snitch also times each step of the engine's frame (scripts, coroutines, rendering, physics, animation, NPC
+navigation, UI, loading, audio, the wait for the GPU). The steps add up to the whole frame, so a stutter always has
+a name. Each one is blamed on one cause, in this order:
+
+1. a section that grew by at least half the frame's excess: a mod's OnUpdate, one of its Harmony patches, a
+   MonoBehaviour it added, one of its coroutines, or a game class with `snitch deep on`,
+2. a garbage collection of the game heap in that frame, named after the mod that made most of its garbage,
+3. a .NET garbage collection (only mods and the loader allocate there), named the same way,
+4. the kind of engine work that grew most, with the mod whose sections grew with it, if any.
+
+Garbage is counted per section: every allocation is charged to the section it happened in, and a collection
+ends the count. A mod that made at least 20% of a collection's garbage is named as its maker. `snitch garbage`
+shows the running count.
+
+The compact overlay shows `Last stutter: <ms> - <cause>` and a count per cause. The game's own work is the grey
+Game block below the mods, one row per kind of engine work (Scripts without the mods' share, Rendering, Physics,
+...); it never takes the LEADER place. The log gets one `[snitch] stutter` line per stutter:
+
+```
+[snitch] stutter 61.2 ms (median 11.4) GC x1 cause: Garbage collection +48.3 | mod: Chassis | garbage since the last collection 38.1 MB: Chassis 21.4 MB (56%), (outside mod code) 12.2 MB (32%), ... | steps: ...
+```
+
+When the game's own scripts or coroutines ran long and no mod is to blame, the line ends its cause with
+`'snitch deep on' names the class`. With `snitch deep on` the same stutter names the game class, for example
+`cause: Game.NPCMovement.Update`.
+
+### Mod patches, MonoBehaviours and coroutines
+
+A mod's per-frame work does not have to live in OnUpdate. While sampling, Snitch also times every prefix,
+postfix and finalizer that belongs to a loaded mod, the Update, LateUpdate, FixedUpdate and OnGUI of every
+MonoBehaviour a mod adds, and every coroutine a mod runs. Each is labelled after its mod, so a stutter in it names
+the mod. The wrappers go in a few per frame after `snitch start` instead of as one long hitch. `snitch patches list` shows what was wrapped, what
 it costs and which methods it patches; `snitch patches status` names every patch that was left alone and why.
 
-It is **off by default**, for three reasons that are all cost:
+What it costs and what to know:
 
-- Wrapping hundreds of patch methods is not free, and a profiler that changes what it measures is worse than
-  useless. The unattributed line stays truthful with this off, and is what tells you to switch it on.
-- A Harmony patch that fails leaves its target broken for every later patcher. That belongs to a deliberate act.
-- It is a snapshot of Harmony's patch table. Run it again after a mod that patches late has loaded.
+- A dictionary lookup on both sides of every call. On a 12-mod stack with 252 wrapped patches the median frame
+  did not change.
+- A Harmony patch that fails leaves its target broken for every later patcher. Every failure is logged as an
+  error and listed by `snitch patches status`; `snitch patches off` (or preference `TimeModPatches`) turns it off.
+- It is a snapshot of Harmony's patch table. Run `snitch patches on` again after a mod that patches late has loaded.
 
 Wrapped patches carry the wrapper's own overhead, the same as the vanilla probes.
 

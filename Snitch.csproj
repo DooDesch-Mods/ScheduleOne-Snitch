@@ -140,6 +140,10 @@
       <HintPath>$(MelonLoaderPath)/Il2CppInterop.Runtime.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Il2CppInterop.Common">
+      <HintPath>$(MelonLoaderPath)/Il2CppInterop.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>$(GameManagedPath)/Il2Cppmscorlib.dll</HintPath>
       <Private>false</Private>

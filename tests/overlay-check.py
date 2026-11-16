@@ -719,6 +719,14 @@ def main():
     slot = a.slot
     open_max_ms = a.open_max_ms
 
+    # Every page check reads the overlay through Sideload's MCP probe, which only a Debug Sideload has. Without it
+    # the bridge answers None to every eval, so the run stops here with the reason instead of 30 empty failures.
+    if not a.mouse_only:
+        code, out = s1(slot, "eval", APP, "1 + 1")
+        if last(out) != "2":
+            check("the overlay page answers eval (needs a Debug build of Sideload in the slot)", False, out)
+            return 1
+
     if a.mouse_only:
         ok, out = run(slot, "snitch open all", r"\[overlay\]")
         check("snitch open all -> expanded", ok, out)
@@ -800,11 +808,18 @@ def main():
     check("compact shows rider rows (>= 2)", code == 0 and n >= 2, out)
 
     code, out = evaluate(slot, "document.getElementById('rows').textContent")
-    check("bib 0 (unattributed) is listed", code == 0 and "unattributed" in out.lower(), out)
+    check("bib 0 (the game row) is listed", code == 0 and "game" in out.lower(), out)
     check("leader word is shown", code == 0 and "leader" in out.lower(), out)
+    code, out = evaluate(slot, "(function () { var r = document.querySelector('.row.lead .name'); "
+                               "return r ? r.textContent : ''; })()")
+    lead_name = out.strip().splitlines()[-1] if out.strip() else ""
+    check("the leader is a mod, not the game row", code == 0 and lead_name != "" and not lead_name.startswith("Game"), out)
 
-    code, out = evaluate(slot, "document.querySelectorAll('#rows > *').length")
-    check("compact shows at most 4 rows (top 3 + bib 0)", code == 0 and 1 <= number_in(out) <= 4, out)
+    # The game's time is a block below the mods, one row per kind of game work (Scripts, Rendering, ...).
+    code, out = evaluate(slot, "document.querySelectorAll('#rows > *:not(.game)').length")
+    check("compact shows at most 3 mod rows (top 3)", code == 0 and 1 <= number_in(out) <= 3, out)
+    code, out = evaluate(slot, "document.querySelectorAll('#rows > .game').length")
+    check("compact shows the Game block in 1-3 rows", code == 0 and 1 <= number_in(out) <= 3, out)
     code, out = evaluate(slot, "Array.prototype.map.call(document.querySelectorAll('.name'), "
                                "function (e) { return e.textContent.length; }).join(',')")
     lens = [int(x) for x in re.findall(r"\d+", out.splitlines()[-1] if out.strip() else "")]
@@ -827,7 +842,7 @@ def main():
     bibs = out.strip().splitlines()[-1].split(",") if out.strip() else []
     check("bib badges: same left edge and fixed width 30 in every row",
           code == 0 and len(bibs) >= 2 and len(set(bibs)) == 1 and bibs[0].endswith(":30"), out)
-    css_path = os.path.join(ROOT, "_wt-Snitch-sideload-overlay", "Assets", "overlay", "app.css")
+    css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Assets", "overlay", "app.css"))
     css = open(css_path, encoding="utf-8").read() if os.path.exists(css_path) else ""
     rule = re.search(r"\.bib\s*\{([^}]*)\}", css)
     check("bib rule centres the digit (text-align center, align-items center)",
@@ -867,9 +882,11 @@ def main():
     code, log = s1(slot, "log", "-n", "600", "--grep", "overlay")
     check("expanded frees the cursor", "[overlay] cursor freed" in log, "")
 
-    code, out = evaluate(slot, "document.querySelectorAll('#rows > *').length")
-    check("expanded rows capped (<= 11)", code == 0 and 1 <= number_in(out) <= 11, out)
+    code, out = evaluate(slot, "document.querySelectorAll('#rows > *:not(.game)').length")
+    check("expanded mod rows capped (<= 10)", code == 0 and 1 <= number_in(out) <= 10, out)
     nrows = number_in(out)
+    code, out = evaluate(slot, "document.querySelectorAll('#rows > .game').length")
+    check("expanded Game block capped (1-6 rows)", code == 0 and 1 <= number_in(out) <= 6, out)
     code, out = evaluate(slot, "document.getElementById('morerows').textContent")
     cut = re.search(r"\+\d+ more", out) is not None
     check("'+N more' line shown exactly when rows were cut", code == 0 and (cut or nrows < 10), out)

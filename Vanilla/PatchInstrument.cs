@@ -30,14 +30,16 @@ namespace Snitch.Vanilla
     /// patched target and Harmony.GetPatchInfo(target) hands back the prefix/postfix/finalizer methods with their
     /// owner ids - so each one is wrapped exactly like a lifecycle method and lands in the same section table.
     ///
-    /// OPT-IN ON PURPOSE ("snitch patches on"). Three reasons, all of them cost:
-    ///  - Wrapping hundreds of patch methods is not free. A postfix called ten thousand times a frame pays a
-    ///    dictionary lookup on both sides of every call, and a profiler that changes what it measures is worse than
-    ///    useless. The unattributed line is what tells you to switch this on, and it stays truthful with it off.
-    ///  - A Harmony patch that FAILS poisons its target for every later patcher. That risk belongs to a deliberate
-    ///    act, not to every session that happens to run the profiler.
-    ///  - Patches installed after the scan are not covered, so this is a snapshot: run it again after a mod that
-    ///    patches late has loaded.
+    /// ON WITH SAMPLING by default (preference TimeModPatches, "snitch patches off" for the session). A stutter inside
+    /// a mod's patch is otherwise charged to the game, which is the worst answer a profiler can give. What it costs:
+    ///  - A dictionary lookup on both sides of every call of a wrapped patch. Measured on a 12-mod stack with 252
+    ///    wrapped patches: no change in the median frame.
+    ///  - Installing a wrapper takes a few milliseconds, so the wrappers go in a few per frame through
+    ///    <see cref="PatchQueue"/> instead of as one long hitch.
+    ///  - A Harmony patch that FAILS poisons its target for every later patcher. Every failure is logged as an error
+    ///    and listed by "snitch patches status".
+    ///  - Patches installed after the scan are not covered, so this is a snapshot: run "snitch patches on" again
+    ///    after a mod that patches late has loaded.
     ///
     /// Only patches that resolve to a loaded Melon are wrapped. Everything else (MelonLoader's own patches,
     /// Il2CppInterop's support patches, Snitch's) is counted by reason and listed, never silently dropped.
@@ -52,6 +54,7 @@ namespace Snitch.Vanilla
         private static volatile Dictionary<MethodBase, int> _ids = new Dictionary<MethodBase, int>();
 
         private static readonly Dictionary<MethodBase, WrappedPatch> _wrapped = new Dictionary<MethodBase, WrappedPatch>();
+        private static readonly Dictionary<MethodBase, WrappedPatch> _inFlight = new Dictionary<MethodBase, WrappedPatch>();
         private static readonly SortedDictionary<string, int> _skips = new SortedDictionary<string, int>(StringComparer.Ordinal);
         private static readonly SortedDictionary<string, int> _skippedOwners = new SortedDictionary<string, int>(StringComparer.Ordinal);
         private static readonly List<string> _failures = new List<string>();
@@ -66,19 +69,26 @@ namespace Snitch.Vanilla
         internal static int FailureCount => _failures.Count;
         internal static bool EverScanned => _scans > 0;
 
-        /// <summary>Scan for patches that are not wrapped yet, wrap them, and arm the timing.</summary>
+        /// <summary>The player switched patch timing off in this session. The automatic start leaves it off from
+        /// then on, so 'snitch patches off' holds across a stop and start.</summary>
+        internal static bool Declined { get; private set; }
+
+        /// <summary>Scan for patches that are not wrapped yet, queue their wrappers, and arm the timing. The
+        /// wrappers go in a few per frame (<see cref="PatchQueue"/>), so the scan itself is no stutter.</summary>
         internal static void Enable()
         {
-            int added = Scan();
+            int queued = Scan();
             Enabled = true;
             Requested = true;
-            Core.Log?.Msg($"[snitch] patch timing ON. {added} newly wrapped, {_wrapped.Count} wrapped in total. " + Status());
+            Declined = false;
+            Core.Log?.Msg($"[snitch] patch timing ON. {queued} queued, {_wrapped.Count} wrapped so far. " + Status());
         }
 
         internal static void Disable()
         {
             Enabled = false;
             Requested = false;
+            Declined = true;
             Core.Log?.Msg("[snitch] patch timing OFF (the wrappers stay installed but dormant - one bool read).");
         }
 
@@ -90,6 +100,7 @@ namespace Snitch.Vanilla
         {
             var sb = new StringBuilder(160);
             sb.Append("enabled=").Append(Enabled).Append(" wrapped=").Append(_wrapped.Count)
+              .Append(" queued=").Append(_inFlight.Count)
               .Append(" scans=").Append(_scans).Append(" failed=").Append(_failures.Count);
             if (_skips.Count > 0)
             {
@@ -183,8 +194,9 @@ namespace Snitch.Vanilla
             return Install(pending, pre, fin);
         }
 
-        /// <summary>Publish the section ids, then wrap. The ids go first because a wrapper can fire the instant it
-        /// is installed, and a wrapper that cannot find its section would leave an unbalanced span behind.</summary>
+        /// <summary>Publish the section ids, then queue one wrap job per patch method. The ids go first because a
+        /// wrapper can fire the instant it is installed, and a wrapper that cannot find its section would leave an
+        /// unbalanced span behind. Returns how many were queued.</summary>
         private static int Install(Dictionary<MethodBase, WrappedPatch> pending, MethodInfo pre, MethodInfo fin)
         {
             if (pending.Count == 0) return 0;
@@ -193,35 +205,84 @@ namespace Snitch.Vanilla
             foreach (WrappedPatch w in pending.Values) map[w.Method] = w.SectionId;
             _ids = map;
 
-            int ok = 0;
-            List<WrappedPatch> failed = null;
+            var jobs = new List<Func<bool>>(pending.Count);
             foreach (WrappedPatch w in pending.Values)
             {
-                try
-                {
-                    Core.HarmonyInst.Patch(w.Method, prefix: new HarmonyMethod(pre), finalizer: new HarmonyMethod(fin));
-                    _wrapped[w.Method] = w;
-                    ok++;
-                }
-                catch (Exception e)
-                {
-                    // A failed Harmony patch can leave its target unusable for later patchers, so this is an error,
-                    // not a note: the mod that owns this method may misbehave from here on.
-                    string msg = w.Label + " (" + Describe(w.Method) + "): " + e.Message;
-                    _failures.Add(msg);
-                    if (failed == null) failed = new List<WrappedPatch>();
-                    failed.Add(w);
-                    Core.Log?.Error("[snitch] could not wrap patch " + msg);
-                }
+                _inFlight[w.Method] = w;
+                WrappedPatch job = w;
+                jobs.Add(() => Wrap(job, pre, fin));
             }
+            PatchQueue.Add("patch timing", jobs, () => Core.Log?.Msg("[snitch] patch timing: " + Status()));
+            return pending.Count;
+        }
 
-            if (failed != null)
+        private static bool Wrap(WrappedPatch w, MethodInfo pre, MethodInfo fin)
+        {
+            _inFlight.Remove(w.Method);
+            try
             {
-                var repaired = new Dictionary<MethodBase, int>(_ids);
-                for (int i = 0; i < failed.Count; i++) repaired.Remove(failed[i].Method);
-                _ids = repaired;
+                Core.HarmonyInst.Patch(w.Method, prefix: new HarmonyMethod(pre), finalizer: new HarmonyMethod(fin));
+                _wrapped[w.Method] = w;
+                return true;
             }
-            return ok;
+            catch (Exception e)
+            {
+                _failures.Add(w.Label + " (" + Describe(w.Method) + "): " + e.Message);
+                var repaired = new Dictionary<MethodBase, int>(_ids);
+                repaired.Remove(w.Method);
+                _ids = repaired;
+                Withdraw(w.Method, "patch " + w.Label + " (" + Describe(w.Method) + ")", e);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Takes a timing wrapper out again after Harmony failed to build the patched method. Harmony keeps the
+        /// prefix in the method's patch list even when the build fails, so without this every later patch of the
+        /// same method would fail the same way. Removing it rebuilds the method as it was.
+        /// </summary>
+        internal static void Withdraw(MethodBase method, string what, Exception cause)
+        {
+            try
+            {
+                // Both of Snitch's patches go in one rebuild: taking out one alone rebuilds the method with the
+                // other still on it, which fails the same way.
+                Core.HarmonyInst.Unpatch(method, HarmonyPatchType.All, Core.HarmonyInst.Id);
+                Core.Log?.Warning("[snitch] could not time " + what + ", left as it was: " + cause.Message);
+            }
+            catch (Exception e)
+            {
+                // Harmony drops the patch from the method's list before it rebuilds the method. When the rebuild
+                // throws, the method still runs its last good build, which never had the wrapper in it.
+                if (!HasOwnPatch(method))
+                {
+                    Core.Log?.Warning("[snitch] could not time " + what + ", left as it was: " + cause.Message
+                                      + " (the method's own IL cannot be rebuilt: " + e.Message + ")");
+                    return;
+                }
+                Core.Log?.Error("[snitch] could not time " + what + " (" + cause.Message + ") and could not take the wrapper out "
+                                + "again: " + e.Message + ". Later patches of this method may fail; restart the game to clear it.");
+            }
+        }
+
+        private static bool HasOwnPatch(MethodBase method)
+        {
+            try
+            {
+                var info = HarmonyLib.Harmony.GetPatchInfo(method);
+                if (info == null) return false;
+                string id = Core.HarmonyInst.Id;
+                foreach (var p in info.Prefixes) if (p.owner == id) return true;
+                foreach (var p in info.Postfixes) if (p.owner == id) return true;
+                foreach (var p in info.Finalizers) if (p.owner == id) return true;
+                foreach (var p in info.Transpilers) if (p.owner == id) return true;
+                return false;
+            }
+            catch (Exception e)
+            {
+                Core.Log?.Warning("[snitch] could not read the patch list of " + method.Name + ": " + e.Message);
+                return true;
+            }
         }
 
         /// <summary>Consider one kind of patch on one target. Every rejection is counted under a name, so
@@ -252,10 +313,12 @@ namespace Snitch.Vanilla
                 // and move on. This is not a rejection, so it is not counted as a skip.
                 if (pending.TryGetValue(pm, out WrappedPatch queued)) { Note(queued, kind, target); continue; }
                 if (_wrapped.TryGetValue(pm, out WrappedPatch already)) { Note(already, kind, target); continue; }
+                if (_inFlight.TryGetValue(pm, out WrappedPatch waiting)) { Note(waiting, kind, target); continue; }
 
                 if (pm is DynamicMethod) { Skip("dynamic-method", 1); continue; }
                 if (pm.DeclaringType == null) { Skip("no-declaring-type", 1); continue; }
-                if (ReferenceEquals(pm.DeclaringType.Assembly, SelfAssembly)) { Skip("snitch-own", 1); continue; }
+                bool testKit = AutoInstrument.IsTestKit(pm.DeclaringType);
+                if (!testKit && ReferenceEquals(pm.DeclaringType.Assembly, SelfAssembly)) { Skip("snitch-own", 1); continue; }
                 if (pm.IsAbstract) { Skip("abstract", 1); continue; }
                 if (pm.IsGenericMethodDefinition || pm.ContainsGenericParameters) { Skip("open-generic", 1); continue; }
 
@@ -267,7 +330,7 @@ namespace Snitch.Vanilla
                     continue;
                 }
 
-                string owner = ResolveOwner(pm, p.owner, byHarmonyId, byAssembly);
+                string owner = testKit ? AutoInstrument.TestKitGroup : ResolveOwner(pm, p.owner, byHarmonyId, byAssembly);
                 if (owner == null)
                 {
                     Skip("not-a-mod-patch", 1);

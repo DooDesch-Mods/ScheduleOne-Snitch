@@ -21,7 +21,7 @@
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 [![Discord](https://mods.doodesch.de/img/badge.svg)](https://mods.doodesch.de) [![Polyfill](https://polyfill.doomods.com/badge/snitch.svg)](https://polyfill.doomods.com/mod/snitch)
 
-[![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_oAb-DnqwKyqFBZJh8lRvZxe_/badge.svg)](https://mlvscan.com/attestations/att_oAb-DnqwKyqFBZJh8lRvZxe_)
+[![MLVScan Snitch.dll](https://mlvscan.com/attestations/att_znQrk8uQE9y9RrfnXUkZaY6g/badge.svg)](https://mlvscan.com/attestations/att_znQrk8uQE9y9RrfnXUkZaY6g)
 
 ![Snitch 2.0.0 - race standings](https://raw.githubusercontent.com/DooDesch-Mods/ScheduleOne-Snitch/main/docs/img/header.jpg)
 
